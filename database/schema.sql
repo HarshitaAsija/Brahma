@@ -1,6 +1,7 @@
 -- BRAHMA v3.2 hardened schema (no redesign, only fixes)
 
 -- Papers table (existing)
+-- Table: papers – stores paper metadata
 CREATE TABLE papers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
@@ -8,6 +9,7 @@ CREATE TABLE papers (
 );
 
 -- Central job system
+-- Table: pipeline_jobs – central job system for pipeline execution
 CREATE TABLE pipeline_jobs (
     job_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_type TEXT NOT NULL,
@@ -25,12 +27,14 @@ CREATE TABLE pipeline_jobs (
 );
 
 -- Idempotency deduplication keys
+-- Table: job_dedup_keys – idempotency deduplication keys
 CREATE TABLE job_dedup_keys (
     idempotency_key TEXT PRIMARY KEY,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Dead letter queue for failed jobs
+-- Table: failed_jobs – dead letter queue for failed pipeline jobs
 CREATE TABLE failed_jobs (
     job_id UUID,
     job_type TEXT,
@@ -40,6 +44,7 @@ CREATE TABLE failed_jobs (
 );
 
 -- Embedding registry (optional safety table)
+-- Table: embedding_registry – registry of embedding models and their dimensions
 CREATE TABLE embedding_registry (
     model_name TEXT PRIMARY KEY,
     vector_dim INT,
@@ -47,6 +52,7 @@ CREATE TABLE embedding_registry (
 );
 
 -- Pipeline events log
+-- Table: pipeline_events – log of pipeline events (started, completed, failed, retried)
 CREATE TABLE pipeline_events (
     event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id UUID,
