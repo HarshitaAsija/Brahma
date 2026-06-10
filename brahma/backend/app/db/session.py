@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
+from typing import Generator
 
 # Create SQLAlchemy engine
 engine = create_engine(
@@ -13,7 +14,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Dependency to get DB session
-def get_db() idazt:
+def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db

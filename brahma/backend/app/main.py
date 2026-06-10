@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from app.core.config import settings
 import logging
 
+from app.api.routers.paper_router import router as paper_router
+from app.api.routers.gene_router import router as gene_router
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -9,6 +12,9 @@ app = FastAPI(
     version=settings.VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+app.include_router(paper_router, prefix=settings.API_V1_STR)
+app.include_router(gene_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():
@@ -21,8 +27,5 @@ async def health_check():
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION
     }
-
-# Include API routers here when they are created
-# app.include_router(api_router, prefix=settings.API_V1_STR)
 
 logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
