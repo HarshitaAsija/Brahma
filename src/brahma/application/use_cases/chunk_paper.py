@@ -1,4 +1,11 @@
 # src/brahma/application/use_cases/chunk_paper.py
+"""Use case for chunking an entire paper and persisting the result.
+
+Iterates over each :class:`~brahma.domain.entities.paper.Section`, calls the
+``ChunkSectionUseCase`` and then bulk‑saves the generated chunks via the
+``ChunkRepository`` port.
+"""
+
 from __future__ import annotations
 
 from typing import List
@@ -9,8 +16,10 @@ from brahma.infrastructure.persistence.base import ChunkRepository
 
 
 class ChunkPaperUseCase:
-    """Orchestrates chunking of a full Paper and persists the chunks.
-    Delegates per‑section work to ``ChunkSectionUseCase``.
+    """Orchestrates chunking of a full ``Paper`` and persists the chunks.
+
+    Errors in individual sections are caught and logged; they do not abort the
+    whole paper processing.
     """
 
     def __init__(self, chunk_section_uc: ChunkSectionUseCase, repo: ChunkRepository) -> None:
@@ -18,6 +27,11 @@ class ChunkPaperUseCase:
         self._repo = repo
 
     def execute(self, paper: Paper) -> List[Chunk]:
+        """Chunk *paper* and store the resulting chunks.
+
+        Returns:
+            List[Chunk]: All generated chunks (empty list if none).
+        """
         all_chunks: List[Chunk] = []
         for section in paper.sections:
             try:

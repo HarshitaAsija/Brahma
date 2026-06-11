@@ -1,4 +1,12 @@
 # src/brahma/adapters/ingestion_adapter.py
+"""Adapter for converting raw scraper JSON into domain objects.
+
+The scraper produces a normalized JSON payload that mirrors the structure of a
+:class:`~brahma.domain.entities.paper.Paper`.  This module validates the JSON
+and constructs the corresponding :class:`Paper` instance, raising
+:class:`DomainError` for any problems.
+"""
+
 from __future__ import annotations
 
 import json
@@ -10,8 +18,12 @@ from brahma.domain.entities.paper import DomainError
 
 
 def parse_paper_json(raw_json: str) -> Paper:
-    """Parse the normalized JSON produced by the scraper into a ``Paper`` domain object.
-    Raises :class:`DomainError` for malformed input.
+    """Parse a JSON string into a :class:`Paper`.
+
+    The function expects the JSON to contain ``paper_id``, ``title`` and an
+    optional ``doi``, ``pmid`` and ``sections`` list.  Each section must have a
+    ``heading`` and ``content``.  Invalid JSON or missing required fields raise
+    :class:`DomainError`.
     """
     try:
         data: dict[str, Any] = json.loads(raw_json)

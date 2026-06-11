@@ -1,4 +1,11 @@
 # src/brahma/infrastructure/tokenizers/huggingface_tokenizer.py
+"""Generic wrapper for any HuggingFace tokenizer.
+
+The ``model_name`` argument can be any model identifier that provides a
+tokenizer (e.g. ``gpt2``).  The ``transformers`` library handles downloading
+and caching the model files.
+"""
+
 from __future__ import annotations
 
 from typing import List
@@ -8,8 +15,10 @@ from .base import Tokenizer
 
 
 class HuggingFaceTokenizer(Tokenizer):
-    """Generic wrapper around any HuggingFace tokenizer.
-    ``model_name`` can be any model identifier that provides a tokenizer (e.g. "gpt2").
+    """Wrapper around a HuggingFace tokenizer.
+
+    ``model_name`` defaults to ``gpt2`` but can be overridden via the
+    ``Settings.tokenizer_kwargs`` dictionary.
     """
 
     def __init__(self, model_name: str = "gpt2") -> None:

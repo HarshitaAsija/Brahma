@@ -1,4 +1,10 @@
 # src/brahma/infrastructure/tokenizers/base.py
+"""Abstract tokenizer interface.
+
+All concrete tokenizers must implement ``encode`` (text → list[int]) and
+``decode`` (list[int] → text).  ``name`` provides a human readable identifier.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

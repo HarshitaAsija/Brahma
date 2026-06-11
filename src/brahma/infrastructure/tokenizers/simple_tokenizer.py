@@ -1,4 +1,12 @@
 # src/brahma/infrastructure/tokenizers/simple_tokenizer.py
+"""Very cheap whitespace tokenizer.
+
+Used for development environments where heavy tokenizers cannot be installed.
+It only provides ``encode`` (returning dummy integer IDs) and deliberately
+raises ``NotImplementedError`` for ``decode`` because a round‑trip is
+meaningless for this stub.
+"""
+
 from __future__ import annotations
 
 import re
@@ -10,9 +18,10 @@ _WHITESPACE_RE = re.compile(r"\s+", flags=re.UNICODE)
 
 
 class SimpleWhitespaceTokenizer(Tokenizer):
-    """Very cheap tokenizer that splits on Unicode whitespace.
-    It is primarily intended for development or environments where the heavy
-    tokenizers cannot be installed.
+    """Tokenizer that splits on Unicode whitespace.
+
+    The returned token IDs are just sequential integers; only the length matters
+    for chunk sizing.
     """
 
     @property
@@ -20,8 +29,10 @@ class SimpleWhitespaceTokenizer(Tokenizer):
         return "simple"
 
     def encode(self, text: str) -> List[int]:
-        # Return dummy integer IDs – only the length matters for chunk sizing.
-        # Enumerate over the split parts to get a deterministic list.
+        """Return a list of dummy token IDs representing the number of words.
+
+        Empty input yields an empty list.
+        """
         if not text:
             return []
         parts = _WHITESPACE_RE.split(text)

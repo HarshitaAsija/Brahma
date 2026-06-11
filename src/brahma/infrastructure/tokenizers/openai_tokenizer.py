@@ -1,4 +1,10 @@
 # src/brahma/infrastructure/tokenizers/openai_tokenizer.py
+"""Tokenizer wrapper around OpenAI's ``tiktoken`` library.
+
+The default model is ``gpt-4o-mini`` but any model name accepted by
+``tiktoken.encoding_for_model`` can be supplied via ``Settings.tokenizer_kwargs``.
+"""
+
 from __future__ import annotations
 
 from typing import List
@@ -8,7 +14,10 @@ from .base import Tokenizer
 
 
 class OpenAITokenizer(Tokenizer):
-    """Wrapper around ``tiktoken`` (OpenAI's tokenizer)."""
+    """Wrapper for the OpenAI ``tiktoken`` tokenizer.
+
+    ``model`` determines which tokenisation scheme is used.
+    """
 
     def __init__(self, model: str = "gpt-4o-mini") -> None:
         self._model = model

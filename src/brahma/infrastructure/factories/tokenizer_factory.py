@@ -1,4 +1,10 @@
 # src/brahma/infrastructure/factories/tokenizer_factory.py
+"""Factory for creating the concrete ``Tokenizer`` implementation.
+
+Selection is based on ``Settings.tokenizer_name``.  Supported values are:
+``openai``, ``hf``/``huggingface`` and ``simple``.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -11,8 +17,10 @@ from brahma.config.settings import get_settings
 
 
 def build_tokenizer() -> Tokenizer:
-    """Instantiate the concrete ``Tokenizer`` based on configuration.
-    The function reads ``Settings.tokenizer_name`` and optional kwargs.
+    """Instantiate the concrete :class:`Tokenizer` based on configuration.
+
+    Returns:
+        Tokenizer: Instance of the selected implementation.
     """
     cfg = get_settings()
     name = cfg.tokenizer_name.lower()

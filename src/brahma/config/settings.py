@@ -1,4 +1,11 @@
 # src/brahma/config/settings.py
+"""Application‑wide configuration.
+
+The settings are loaded from environment variables (via a ``.env`` file) and
+exposed as a cached singleton through :func:`get_settings`.  All tunable
+parameters – chunk size, tokenizer choice, database URL – are defined here.
+"""
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -6,8 +13,10 @@ from pydantic import BaseSettings, Field, PostgresDsn, model_validator
 
 
 class Settings(BaseSettings):
-    """Application‑wide configuration loaded from environment variables.
-    All tunables (chunk size/overlap, tokenizer choice, DB URL) live here.
+    """Pydantic settings model.
+
+    Environment variables (or ``.env``) populate the fields.  Validation ensures
+    sensible defaults and type safety.
     """
 
     # Chunking parameters (defaults correspond to the original spec)
@@ -30,7 +39,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="before")
     def _coerce_bool(cls, values: dict) -> dict:
-        # Allows true/false strings for boolean‑like fields if we add any later.
+        """Coerce ``"true"``/``"false"`` strings to booleans for future flags."""
         for k, v in list(values.items()):
             if isinstance(v, str) and v.lower() in {"true", "false"}:
                 values[k] = v.lower() == "true"
@@ -39,5 +48,5 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Singleton accessor used throughout the code‑base."""
+    """Return a cached :class:`Settings` instance (singleton)."""
     return Settings()
