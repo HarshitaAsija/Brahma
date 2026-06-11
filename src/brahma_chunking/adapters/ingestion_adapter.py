@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, List
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from brahma.domain.entities.paper import Paper, Section
 from brahma.domain.entities.paper import DomainError
@@ -20,10 +20,10 @@ from brahma.domain.entities.paper import DomainError
 def parse_paper_json(raw_json: str) -> Paper:
     """Parse a JSON string into a :class:`Paper`.
 
-    The function expects the JSON to contain ``paper_id``, ``title`` and an
-    optional ``doi``, ``pmid`` and ``sections`` list.  Each section must have a
-    ``heading`` and ``content``.  Invalid JSON or missing required fields raise
-    :class:`DomainError`.
+    The function expects the JSON to contain ``paper_id`` (optional), ``title``
+    and an optional ``doi``, ``pmid`` and ``sections`` list.  ``paper_id`` may be
+    omitted in which case a new UUID is generated.  Invalid JSON or missing
+    required fields raise :class:`DomainError`.
     """
     try:
         data: dict[str, Any] = json.loads(raw_json)
@@ -31,7 +31,9 @@ def parse_paper_json(raw_json: str) -> Paper:
         raise DomainError(f"Invalid JSON payload: {exc}") from exc
 
     try:
-        paper_id = UUID(data["paper_id"])
+        # ``paper_id`` is optional – generate one if absent.
+        paper_id_raw = data.get("paper_id")
+        paper_id = UUID(paper_id_raw) if paper_id_raw else uuid4()
         title = str(data["title"])
         doi = data.get("doi")
         pmid = data.get("pmid")

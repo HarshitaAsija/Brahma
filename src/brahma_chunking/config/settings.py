@@ -9,14 +9,24 @@ parameters – chunk size, tokenizer choice, database URL – are defined here.
 from __future__ import annotations
 
 from functools import lru_cache
-from pydantic import BaseSettings, Field, PostgresDsn, model_validator
+
+# Pydantic v2 moved ``BaseSettings`` to the ``pydantic-settings`` package.
+# Import it if available; otherwise fall back to the older location for older
+# environments.
+try:
+    # New location (pydantic-settings >=2.0)
+    from pydantic_settings import BaseSettings  # type: ignore
+except ImportError:  # pragma: no cover
+    # Legacy location (pydantic <2.0)
+    from pydantic import BaseSettings  # type: ignore
+
+from pydantic import Field, PostgresDsn, model_validator
 
 
 class Settings(BaseSettings):
-    """Pydantic settings model.
+    """Settings model loaded from environment variables.
 
-    Environment variables (or ``.env``) populate the fields.  Validation ensures
-    sensible defaults and type safety.
+    ``BaseSettings`` reads ``.env`` automatically and validates types.
     """
 
     # Chunking parameters (defaults correspond to the original spec)
