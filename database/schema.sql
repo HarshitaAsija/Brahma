@@ -1,4 +1,5 @@
 -- BRAHMA v3.2 hardened schema (no redesign, only fixes)
+CREATE EXTENSION IF NOT EXISTS vector;
 
 -- L0 — RAW INGESTION LAYER
 -- Table: raw_papers – immutable raw scientific documents as audit log
