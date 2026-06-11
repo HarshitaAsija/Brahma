@@ -1,0 +1,11 @@
+{
+  "paper_id": "11111111-1111-1111-1111-111111111111",
+  "title": "Demo Biomedical Paper",
+  "doi": "10.1234/demo",
+  "pmid": "12345678",
+  "sections": [
+    {"heading": "Introduction", "content": "This is the introduction. It explains the background. It is short."},
+    {"heading": "Methods", "content": "We performed many experiments. Each experiment was carefully designed. The procedure is described in detail. "},
+    {"heading": "Results", "content": "The results show a significant effect. The data supports the hypothesis. Additional analysis confirms robustness."}
+  ]
+}
