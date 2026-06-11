@@ -1,0 +1,25 @@
+# src/brahma/infrastructure/tokenizers/base.py
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import List
+
+
+class Tokenizer(ABC):
+    """Port interface – any concrete tokenizer must implement this."""
+
+    @abstractmethod
+    def encode(self, text: str) -> List[int]:
+        """Return a list of token IDs for ``text``.  Length of the list is the token count."""
+        ...
+
+    @abstractmethod
+    def decode(self, tokens: List[int]) -> str:
+        """Inverse of ``encode`` – for debugging / round‑trip tests."""
+        ...
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Human readable identifier (e.g. 'openai', 'hf')."""
+        ...
