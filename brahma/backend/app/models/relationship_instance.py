@@ -1,4 +1,16 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, UniqueConstraint, CheckConstraint, func
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    Float,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    CheckConstraint,
+    Enum,
+    func,
+)
 from pgvector.sqlalchemy import Vector
 from app.db.base import Base
 
