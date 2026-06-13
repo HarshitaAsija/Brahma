@@ -6,220 +6,79 @@
 <title>BRAHMA — Literature Ingestion Demo</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #0f1117;
-    color: #e2e8f0;
-    min-height: 100vh;
-  }
-  header {
-    background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
-    border-bottom: 1px solid #2d3748;
-    padding: 20px 40px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .logo {
-    font-size: 28px;
-    font-weight: 800;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%); border-bottom: 1px solid #2d3748; padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 28px; font-weight: 800; background: linear-gradient(90deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .tagline { color: #94a3b8; font-size: 14px; }
-
   .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
-
-  .search-card {
-    background: #1a1f2e;
-    border: 1px solid #2d3748;
-    border-radius: 16px;
-    padding: 32px;
-    margin-bottom: 32px;
-  }
+  .search-card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 16px; padding: 32px; margin-bottom: 32px; }
   .search-card h2 { font-size: 18px; color: #a5b4fc; margin-bottom: 20px; }
-
-  .search-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-  }
+  .search-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field label { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
-
-  input[type=text], select, input[type=number] {
-    background: #0f1117;
-    border: 1px solid #374151;
-    border-radius: 8px;
-    color: #e2e8f0;
-    padding: 10px 14px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
+  input[type=text], select, input[type=number] { background: #0f1117; border: 1px solid #374151; border-radius: 8px; color: #e2e8f0; padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.2s; }
   input[type=text]:focus, select:focus { border-color: #6366f1; }
   input[type=text] { width: 320px; }
-  select { width: 150px; }
+  select { width: 160px; }
   input[type=number] { width: 90px; }
-
-  button {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 24px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
+  button { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 8px; padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
   button:hover { opacity: 0.85; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 24px;
-    border-bottom: 1px solid #2d3748;
-    padding-bottom: 0;
-  }
-  .tab {
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 8px 8px 0 0;
-    font-size: 14px;
-    color: #94a3b8;
-    background: transparent;
-    border: none;
-    transition: all 0.2s;
-  }
+  .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 6px; }
+  .btn-outline { background: transparent; border: 1px solid #6366f1; color: #a5b4fc; }
+  .btn-outline:hover { background: #6366f120; opacity: 1; }
+  .btn-green { background: linear-gradient(135deg, #16a34a, #15803d); }
+  .btn-gray { background: #1e293b; border: 1px solid #374151; color: #94a3b8; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid #2d3748; }
+  .tab { padding: 10px 20px; cursor: pointer; border-radius: 8px 8px 0 0; font-size: 14px; color: #94a3b8; background: transparent; border: none; transition: all 0.2s; }
   .tab.active { color: #a5b4fc; background: #1a1f2e; border: 1px solid #2d3748; border-bottom: 1px solid #1a1f2e; }
-
   .tab-content { display: none; }
   .tab-content.active { display: block; }
-
-  .status {
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    margin: 16px 0;
-    display: none;
-  }
+  .status { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin: 16px 0; display: none; }
   .status.info { background: #1e3a5f; border: 1px solid #2563eb; color: #93c5fd; display: block; }
   .status.error { background: #3b0e0e; border: 1px solid #dc2626; color: #fca5a5; display: block; }
   .status.success { background: #0d3320; border: 1px solid #16a34a; color: #86efac; display: block; }
-
-  .results-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-  }
-  .paper-card {
-    background: #1a1f2e;
-    border: 1px solid #2d3748;
-    border-radius: 12px;
-    padding: 20px;
-    transition: border-color 0.2s;
-    cursor: pointer;
-  }
+  .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin-top: 16px; }
+  .paper-card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
   .paper-card:hover { border-color: #6366f1; }
-  .paper-source {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-  }
-  .src-pmc     { background: #1e3a5f; color: #93c5fd; }
+  .paper-card.expanded { border-color: #6366f1; grid-column: 1 / -1; }
+  .paper-source { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; }
+  .src-pmc { background: #1e3a5f; color: #93c5fd; }
   .src-biorxiv { background: #1a2e1a; color: #86efac; }
   .src-medrxiv { background: #2d1a3e; color: #c4b5fd; }
-  .src-pubmed  { background: #2e1a1a; color: #fca5a5; }
-  .src-pdf     { background: #2e2a1a; color: #fde68a; }
-
-  .paper-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #e2e8f0;
-    margin-bottom: 8px;
-    line-height: 1.4;
-  }
-  .paper-meta {
-    font-size: 12px;
-    color: #64748b;
-    margin-bottom: 8px;
-  }
-  .paper-stats {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-  }
-  .stat {
-    font-size: 11px;
-    color: #94a3b8;
-    background: #0f1117;
-    padding: 3px 8px;
-    border-radius: 4px;
-  }
+  .src-pubmed { background: #2e1a1a; color: #fca5a5; }
+  .src-pdf { background: #2e2a1a; color: #fde68a; }
+  .paper-title { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; line-height: 1.4; }
+  .paper-meta { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+  .paper-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .stat { font-size: 11px; color: #94a3b8; background: #0f1117; padding: 3px 8px; border-radius: 4px; }
   .stat.green { color: #86efac; }
-
-  .sections-list {
-    margin-top: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .section-tag {
-    font-size: 10px;
-    background: #1e293b;
-    color: #94a3b8;
-    padding: 2px 6px;
-    border-radius: 3px;
-  }
-
-  /* PDF upload */
-  .upload-area {
-    border: 2px dashed #374151;
-    border-radius: 12px;
-    padding: 48px;
-    text-align: center;
-    transition: border-color 0.2s;
-    cursor: pointer;
-  }
+  .sections-list { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .section-tag { font-size: 10px; background: #1e293b; color: #94a3b8; padding: 2px 6px; border-radius: 3px; }
+  .card-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .abstract-box { margin-top: 14px; padding: 14px; background: #0f1117; border-radius: 8px; border-left: 3px solid #6366f1; font-size: 13px; color: #94a3b8; line-height: 1.6; display: none; }
+  .abstract-box.show { display: block; }
+  .upload-area { border: 2px dashed #374151; border-radius: 12px; padding: 48px; text-align: center; transition: border-color 0.2s; cursor: pointer; }
   .upload-area:hover { border-color: #6366f1; }
   .upload-area p { color: #64748b; margin-top: 8px; font-size: 14px; }
   .upload-icon { font-size: 48px; }
   #pdf-file { display: none; }
-
-  .summary-bar {
-    display: flex;
-    gap: 20px;
-    padding: 16px 20px;
-    background: #1a1f2e;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
+  .summary-bar { display: flex; gap: 20px; padding: 16px 20px; background: #1a1f2e; border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap; }
   .summary-stat { text-align: center; }
   .summary-stat .num { font-size: 24px; font-weight: 700; color: #a5b4fc; }
   .summary-stat .lbl { font-size: 11px; color: #64748b; }
-
-  .spinner {
-    display: inline-block;
-    width: 16px; height: 16px;
-    border: 2px solid #6366f1;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    vertical-align: middle;
-    margin-right: 8px;
-  }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #6366f1; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: #000000cc; z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #1a1f2e; border: 1px solid #4f46e5; border-radius: 16px; padding: 32px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+  .modal h3 { color: #a5b4fc; margin-bottom: 16px; font-size: 16px; line-height: 1.4; }
+  .modal-close { position: absolute; top: 16px; right: 16px; background: #374151; border: none; color: #94a3b8; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 16px; }
+  .modal-close:hover { background: #4b5563; opacity: 1; }
+  .modal-section { margin-bottom: 16px; }
+  .modal-section h4 { font-size: 12px; color: #6366f1; text-transform: uppercase; margin-bottom: 6px; }
+  .modal-section p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -232,12 +91,10 @@
 </header>
 
 <div class="container">
-
-  <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('search')">🔍 Search Papers</button>
-    <button class="tab" onclick="switchTab('pdf')">📄 Upload PDF</button>
-    <button class="tab" onclick="switchTab('results')">📚 All Results</button>
+    <button class="tab active" onclick="switchTab('search',this)">🔍 Search Papers</button>
+    <button class="tab" onclick="switchTab('pdf',this)">📄 Upload PDF</button>
+    <button class="tab" onclick="switchTab('results',this)">📚 All Results</button>
   </div>
 
   <!-- SEARCH TAB -->
@@ -247,7 +104,7 @@
       <div class="search-row">
         <div class="field">
           <label>Search Query</label>
-          <input type="text" id="query" placeholder="e.g. cancer immunotherapy, type 2 diabetes" value="cancer immunotherapy">
+          <input type="text" id="query" placeholder="e.g. cancer immunotherapy" value="cancer immunotherapy">
         </div>
         <div class="field">
           <label>Source</label>
@@ -270,7 +127,6 @@
       </div>
       <div id="search-status" class="status"></div>
     </div>
-
     <div id="search-results"></div>
   </div>
 
@@ -278,13 +134,11 @@
   <div id="tab-pdf" class="tab-content">
     <div class="search-card">
       <h2>Upload PDF for Text Extraction</h2>
-      <p style="color:#94a3b8; font-size:13px; margin-bottom:20px;">
-        Supports both digital PDFs (text embedded) and scanned PDFs (image pages — OCR will run automatically).
-      </p>
+      <p style="color:#94a3b8;font-size:13px;margin-bottom:20px;">Digital or scanned PDFs supported — OCR runs automatically on image pages.</p>
       <div class="upload-area" onclick="document.getElementById('pdf-file').click()">
         <div class="upload-icon">📄</div>
         <p>Click to select a PDF file</p>
-        <p style="font-size:12px; margin-top:4px;">Digital or scanned — OCR runs automatically on image pages</p>
+        <p style="font-size:12px;margin-top:4px;">OCR runs automatically on scanned pages</p>
         <input type="file" id="pdf-file" accept=".pdf" onchange="uploadPDF(this)">
       </div>
       <div id="pdf-status" class="status"></div>
@@ -296,7 +150,7 @@
   <div id="tab-results" class="tab-content">
     <div class="search-card">
       <h2>Previously Scraped Articles</h2>
-      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
         <div class="field">
           <label>Filter by Source</label>
           <select id="filter-source" onchange="loadResults()">
@@ -314,16 +168,45 @@
     <div id="results-status" class="status"></div>
     <div id="all-results"></div>
   </div>
+</div>
 
+<!-- MODAL for full paper view -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" id="modal-content">
+    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('show')">✕</button>
+    <h3 id="modal-title"></h3>
+    <div class="modal-section">
+      <h4>Authors</h4>
+      <p id="modal-authors"></p>
+    </div>
+    <div class="modal-section">
+      <h4>Journal / Date</h4>
+      <p id="modal-journal"></p>
+    </div>
+    <div class="modal-section">
+      <h4>DOI</h4>
+      <p id="modal-doi"></p>
+    </div>
+    <div class="modal-section">
+      <h4>Abstract</h4>
+      <p id="modal-abstract"></p>
+    </div>
+    <div class="modal-section">
+      <h4>Sections</h4>
+      <p id="modal-sections"></p>
+    </div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
 </div>
 
 <script>
 const API = 'http://localhost:8000/api/v1/ingestion';
+let allArticles = [];
 
-function switchTab(name) {
+function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  el.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'results') loadResults();
 }
@@ -334,19 +217,87 @@ function setStatus(id, msg, type) {
   el.innerHTML = msg;
 }
 
-function sourceClass(src) {
-  return 'src-' + (src || 'pmc');
+function sourceClass(src) { return 'src-' + (src || 'pmc'); }
+
+function openModal(a) {
+  document.getElementById('modal-title').textContent = a.title || 'Untitled';
+  document.getElementById('modal-authors').textContent = (a.authors||[]).join(', ') || 'N/A';
+  document.getElementById('modal-journal').textContent = (a.publication_date || '') + (a.journal ? ' · ' + a.journal : '');
+  document.getElementById('modal-doi').innerHTML = a.doi
+    ? `<a href="https://doi.org/${a.doi}" target="_blank" style="color:#a5b4fc">${a.doi}</a>`
+    : 'N/A';
+  document.getElementById('modal-abstract').textContent = a.abstract || 'No abstract available.';
+  document.getElementById('modal-sections').textContent = a.section_count
+    ? `${a.section_count} sections · ${(a.word_count||0).toLocaleString()} words`
+    : 'No sections';
+
+  const actions = document.getElementById('modal-actions');
+  actions.innerHTML = '';
+
+  // Open DOI in browser
+  if (a.doi) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-sm btn-outline';
+    btn.textContent = '🔗 Open Paper';
+    btn.onclick = () => window.open('https://doi.org/' + a.doi, '_blank');
+    actions.appendChild(btn);
+  }
+
+  // Open PubMed/PMC link
+  if (a.source === 'pmc' && a.source_external_id) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-sm btn-outline';
+    btn.textContent = '📖 Open in PMC';
+    btn.onclick = () => window.open('https://pmc.ncbi.nlm.nih.gov/articles/' + a.source_external_id + '/', '_blank');
+    actions.appendChild(btn);
+  }
+  if (a.source === 'pubmed' && a.source_external_id) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-sm btn-outline';
+    btn.textContent = '📖 Open in PubMed';
+    btn.onclick = () => window.open('https://pubmed.ncbi.nlm.nih.gov/' + a.source_external_id + '/', '_blank');
+    actions.appendChild(btn);
+  }
+  if ((a.source === 'biorxiv' || a.source === 'medrxiv') && a.doi) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-sm btn-outline';
+    btn.textContent = '📖 Open Preprint';
+    btn.onclick = () => window.open('https://www.biorxiv.org/content/' + a.doi, '_blank');
+    actions.appendChild(btn);
+  }
+
+  // Download JSON
+  const dlBtn = document.createElement('button');
+  dlBtn.className = 'btn-sm btn-green';
+  dlBtn.textContent = '⬇ Download JSON';
+  dlBtn.onclick = () => downloadJSON(a);
+  actions.appendChild(dlBtn);
+
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal(e) {
+  if (e.target.id === 'modal') document.getElementById('modal').classList.remove('show');
+}
+
+function downloadJSON(a) {
+  const blob = new Blob([JSON.stringify(a, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = (a.source_external_id || 'article').replace(/[^a-z0-9]/gi,'_') + '.json';
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderCards(articles, containerId) {
+  allArticles = articles;
   const container = document.getElementById(containerId);
   if (!articles.length) {
     container.innerHTML = '<p style="color:#64748b;text-align:center;padding:40px">No articles found.</p>';
     return;
   }
-
-  // Summary bar
-  const totalWords = articles.reduce((s, a) => s + (a.word_count || 0), 0);
+  const totalWords = articles.reduce((s,a) => s + (a.word_count||0), 0);
   const withFull = articles.filter(a => a.has_full_text).length;
   container.innerHTML = `
     <div class="summary-bar">
@@ -355,122 +306,100 @@ function renderCards(articles, containerId) {
       <div class="summary-stat"><div class="num">${withFull}</div><div class="lbl">With Full Text</div></div>
       <div class="summary-stat"><div class="num">${Math.round(totalWords/Math.max(articles.length,1)).toLocaleString()}</div><div class="lbl">Avg Words</div></div>
     </div>
-    <div class="results-grid">${articles.map(renderCard).join('')}</div>
+    <div class="results-grid">${articles.map((a,i) => renderCard(a,i)).join('')}</div>
   `;
 }
 
-function renderCard(a) {
+function renderCard(a, i) {
   const sections = a.section_count ? `<div class="sections-list">${
-    Array.from({length: Math.min(a.section_count, 6)}, (_,i) => `<span class="section-tag">§${i+1}</span>`).join('')
-    }${a.section_count > 6 ? `<span class="section-tag">+${a.section_count-6}</span>` : ''}</div>` : '';
+    Array.from({length:Math.min(a.section_count,6)},(_,j)=>`<span class="section-tag">§${j+1}</span>`).join('')
+    }${a.section_count>6?`<span class="section-tag">+${a.section_count-6}</span>`:''}</div>` : '';
 
-  return `
-  <div class="paper-card">
+  const doiLink = a.doi ? `https://doi.org/${a.doi}` : null;
+
+  return `<div class="paper-card" id="card-${i}">
     <span class="paper-source ${sourceClass(a.source)}">${a.source}</span>
-    <div class="paper-title">${a.title || 'Untitled'}</div>
-    <div class="paper-meta">${(a.authors||[]).slice(0,2).join(', ')}${(a.authors||[]).length > 2 ? ' et al.' : ''}
-      ${a.publication_date ? '· ' + a.publication_date : ''}</div>
-    ${a.doi ? `<div class="paper-meta" style="font-size:11px">DOI: ${a.doi}</div>` : ''}
+    <div class="paper-title">${a.title||'Untitled'}</div>
+    <div class="paper-meta">${(a.authors||[]).slice(0,2).join(', ')}${(a.authors||[]).length>2?' et al.':''} ${a.publication_date?'· '+a.publication_date:''}</div>
+    ${a.doi?`<div class="paper-meta" style="font-size:11px">DOI: ${a.doi}</div>`:''}
     <div class="paper-stats">
-      <span class="stat ${a.word_count > 1000 ? 'green' : ''}">${(a.word_count||0).toLocaleString()} words</span>
+      <span class="stat ${a.word_count>1000?'green':''}">${(a.word_count||0).toLocaleString()} words</span>
       <span class="stat">${a.section_count} sections</span>
-      ${a.has_full_text ? '<span class="stat green">✓ Full text</span>' : '<span class="stat">Abstract only</span>'}
-      ${a.has_abstract ? '<span class="stat green">✓ Abstract</span>' : ''}
+      ${a.has_full_text?'<span class="stat green">✓ Full text</span>':'<span class="stat">Abstract only</span>'}
+      ${a.has_abstract?'<span class="stat green">✓ Abstract</span>':''}
     </div>
     ${sections}
+    <div class="card-actions">
+      <button class="btn-sm btn-outline" onclick='openModal(${JSON.stringify(a)})'>🔍 View Details</button>
+      ${doiLink?`<button class="btn-sm btn-outline" onclick="window.open('${doiLink}','_blank')">🔗 Open Paper</button>`:''}
+      ${a.source==='pmc'&&a.source_external_id?`<button class="btn-sm btn-outline" onclick="window.open('https://pmc.ncbi.nlm.nih.gov/articles/${a.source_external_id}/','_blank')">📖 PMC</button>`:''}
+      <button class="btn-sm btn-gray" onclick='downloadJSON(${JSON.stringify(a)})'>⬇ JSON</button>
+    </div>
   </div>`;
 }
 
 async function doSearch() {
   const query = document.getElementById('query').value.trim();
   const source = document.getElementById('source').value;
-  const max = parseInt(document.getElementById('max').value) || 3;
-
-  if (!query) { setStatus('search-status', 'Please enter a search query.', 'error'); return; }
-
+  const max = parseInt(document.getElementById('max').value)||3;
+  if (!query) { setStatus('search-status','Please enter a search query.','error'); return; }
   const btn = document.getElementById('search-btn');
   btn.disabled = true;
   document.getElementById('search-results').innerHTML = '';
-  setStatus('search-status', `<span class="spinner"></span>Scraping ${source.toUpperCase()} for "<b>${query}</b>"... this may take 30-60 seconds for browser-based sources.`, 'info');
-
+  setStatus('search-status',`<span class="spinner"></span>Scraping ${source.toUpperCase()} for "<b>${query}</b>"... please wait.`,'info');
   try {
-    const resp = await fetch(`${API}/search`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({query, source, max_results: max}),
-    });
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.detail || resp.statusText);
-    }
+    const resp = await fetch(`${API}/search`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,source,max_results:max})});
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.detail||resp.statusText); }
     const data = await resp.json();
-    setStatus('search-status', `✓ Scraped ${data.total} articles from ${data.source.toUpperCase()} for "<b>${data.query}</b>"`, 'success');
-    renderCards(data.articles, 'search-results');
+    setStatus('search-status',`✓ Scraped ${data.total} articles from ${data.source.toUpperCase()} for "<b>${data.query}</b>"`,'success');
+    renderCards(data.articles,'search-results');
   } catch(e) {
-    setStatus('search-status', `Error: ${e.message}`, 'error');
-  } finally {
-    btn.disabled = false;
-  }
+    setStatus('search-status','Error: '+e.message,'error');
+  } finally { btn.disabled=false; }
 }
 
 async function uploadPDF(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  setStatus('pdf-status', `<span class="spinner"></span>Processing "${file.name}"... OCR will run automatically on scanned pages.`, 'info');
-  document.getElementById('pdf-result').innerHTML = '';
-
-  const form = new FormData();
-  form.append('file', file);
-
+  const file = input.files[0]; if (!file) return;
+  setStatus('pdf-status',`<span class="spinner"></span>Processing "${file.name}"...`,'info');
+  document.getElementById('pdf-result').innerHTML='';
+  const form = new FormData(); form.append('file',file);
   try {
-    const resp = await fetch(`${API}/pdf`, {method: 'POST', body: form});
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.detail || resp.statusText);
-    }
+    const resp = await fetch(`${API}/pdf`,{method:'POST',body:form});
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.detail||resp.statusText); }
     const d = await resp.json();
-    setStatus('pdf-status',
-      `✓ "${d.filename}" processed${d.ocr_used ? ' <b>(OCR was used — scanned PDF detected)</b>' : ' (digital PDF)'}`,
-      'success');
-    document.getElementById('pdf-result').innerHTML = `
+    setStatus('pdf-status',`✓ "${d.filename}" processed${d.ocr_used?' (OCR used)':' (digital PDF)'}`,'success');
+    document.getElementById('pdf-result').innerHTML=`
       <div class="paper-card" style="margin-top:16px">
-        <span class="paper-source src-pdf">PDF${d.ocr_used ? ' · OCR' : ''}</span>
-        <div class="paper-title">${d.title || file.name}</div>
-        ${d.doi ? `<div class="paper-meta">DOI: ${d.doi}</div>` : ''}
-        ${(d.authors||[]).length ? `<div class="paper-meta">${d.authors.slice(0,3).join(', ')}</div>` : ''}
-        ${d.abstract ? `<div style="font-size:13px;color:#94a3b8;margin-top:10px;line-height:1.5">${d.abstract}</div>` : ''}
+        <span class="paper-source src-pdf">PDF${d.ocr_used?' · OCR':''}</span>
+        <div class="paper-title">${d.title||file.name}</div>
+        ${d.doi?`<div class="paper-meta">DOI: ${d.doi}</div>`:''}
+        ${(d.authors||[]).length?`<div class="paper-meta">${d.authors.slice(0,3).join(', ')}</div>`:''}
+        ${d.abstract?`<div style="font-size:13px;color:#94a3b8;margin-top:10px;line-height:1.5">${d.abstract}</div>`:''}
         <div class="paper-stats" style="margin-top:12px">
           <span class="stat green">${(d.word_count||0).toLocaleString()} words</span>
           <span class="stat">${d.section_count} sections</span>
-          <span class="stat">${d.chunk_count} chunks</span>
-          ${d.ocr_used ? '<span class="stat" style="color:#fde68a">OCR used</span>' : '<span class="stat green">Digital PDF</span>'}
+          <span class="stat">${d.chunk_count} chunks (RAG-ready)</span>
+          ${d.ocr_used?'<span class="stat" style="color:#fde68a">OCR used</span>':'<span class="stat green">Digital PDF</span>'}
         </div>
-        <div class="sections-list" style="margin-top:10px">
-          ${(d.sections||[]).map(s => `<span class="section-tag">${s}</span>`).join('')}
+        <div class="card-actions">
+          ${d.doi?`<button class="btn-sm btn-outline" onclick="window.open('https://doi.org/${d.doi}','_blank')">🔗 Open Paper</button>`:''}
+          <button class="btn-sm btn-gray" onclick="downloadJSON(${JSON.stringify(d)})">⬇ JSON</button>
         </div>
-        <div style="font-size:11px;color:#475569;margin-top:12px">Saved: ${d.saved_to}</div>
       </div>`;
-  } catch(e) {
-    setStatus('pdf-status', `Error: ${e.message}`, 'error');
-  }
+  } catch(e) { setStatus('pdf-status','Error: '+e.message,'error'); }
 }
 
 async function loadResults() {
   const src = document.getElementById('filter-source').value;
-  setStatus('results-status', '<span class="spinner"></span>Loading...', 'info');
-  document.getElementById('all-results').innerHTML = '';
-
+  setStatus('results-status','<span class="spinner"></span>Loading...','info');
+  document.getElementById('all-results').innerHTML='';
   try {
-    const url = `${API}/results${src ? '?source='+src : ''}`;
-    const resp = await fetch(url);
+    const resp = await fetch(`${API}/results${src?'?source='+src:''}`);
     if (!resp.ok) throw new Error(resp.statusText);
     const data = await resp.json();
-    setStatus('results-status', `Found ${data.total} scraped articles on disk.`, 'success');
-    renderCards(data.articles, 'all-results');
-  } catch(e) {
-    setStatus('results-status', `Error: ${e.message}`, 'error');
-  }
+    setStatus('results-status',`Found ${data.total} scraped articles on disk.`,'success');
+    renderCards(data.articles,'all-results');
+  } catch(e) { setStatus('results-status','Error: '+e.message,'error'); }
 }
 </script>
 </body>

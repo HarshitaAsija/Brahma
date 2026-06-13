@@ -1,10 +1,7 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 import logging
-
-from app.api.routers.paper_router import router as paper_router
-from app.api.routers.ingestion_router import router as ingestion_router
-# Gene router removed – replaced by generalized Entity model
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +11,25 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
-app.include_router(paper_router, prefix=settings.API_V1_STR)
+# CORS — allows the demo frontend (opened as a local file) to call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Ingestion router — no DB needed, works standalone
+from app.api.routers.ingestion_router import router as ingestion_router
 app.include_router(ingestion_router, prefix=settings.API_V1_STR)
-# No gene router in MVP; entities are accessed via dedicated endpoints later
+
+# Paper router — needs Postgres/pgvector; load only if DB is available
+try:
+    from app.api.routers.paper_router import router as paper_router
+    app.include_router(paper_router, prefix=settings.API_V1_STR)
+    logger.info("paper_router loaded (DB available)")
+except Exception as e:
+    logger.warning(f"paper_router skipped (DB not available): {e}")
 
 @app.get("/")
 async def root():
