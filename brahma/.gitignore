@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Output data — scraped JSONs should not be in git
+ai/ingestion/output/
+backend/ai/ingestion/output/
+output/
+
+# Test PDFs
+ai/ingestion/tests/*.pdf
+
+# OS
+.DS_Store
