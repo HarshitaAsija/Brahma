@@ -119,7 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_rel_inst_type ON relationship_instances (relation
 -- -----------------------------------------------------------------
 -- pipeline_tasks – simple job tracker for the MVP
 -- -----------------------------------------------------------------
-CREATE TYPE IF NOT EXISTS pipeline_status AS ENUM ('pending','running','completed','failed');
+CREATE TYPE pipeline_status AS ENUM ('pending','running','completed','failed');
 CREATE TABLE IF NOT EXISTS pipeline_tasks (
     id            SERIAL PRIMARY KEY,
     task_type     VARCHAR(100) NOT NULL,
