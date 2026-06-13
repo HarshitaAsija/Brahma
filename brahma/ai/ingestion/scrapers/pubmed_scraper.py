@@ -18,6 +18,8 @@ async def _get_pmids(query: str, max_results: int, client: httpx.AsyncClient) ->
     params = {
         "db": "pubmed", "term": query,
         "retmax": max_results, "retmode": "json",
+        "sort": "relevance",
+        "field": "title/abstract",
     }
     if NCBI_API_KEY:
         params["api_key"] = NCBI_API_KEY
