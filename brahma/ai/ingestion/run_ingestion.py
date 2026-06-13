@@ -13,7 +13,7 @@ from ai.ingestion.scrapers.search_scraper import search_and_scrape, run_pubmed
 from ai.ingestion.scrapers.pmc_scraper import run_pmc
 from ai.ingestion.scrapers.biorxiv_scraper import search_and_scrape as biorxiv_scrape
 
-OUTPUT_DIR = "ai/ingestion/output"
+OUTPUT_DIR = "/home/shalu/brahma_workspace/Brahma/brahma/backend/ai/ingestion/output"
 
 def run(query: str, max_results: int = 10, source: str = "pmc"):
     print(f"\n{'='*60}")

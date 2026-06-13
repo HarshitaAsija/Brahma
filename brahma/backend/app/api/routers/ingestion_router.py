@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
-OUTPUT_DIR = "ai/ingestion/output"
+OUTPUT_DIR = "/home/shalu/brahma_workspace/Brahma/brahma/backend/ai/ingestion/output"
 
 
 # --------------------------------------------------------------------------- #
