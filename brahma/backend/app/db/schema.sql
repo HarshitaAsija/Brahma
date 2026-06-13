@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS raw_papers (
 -- -----------------------------------------------------------------
 -- entities – generalized biomedical entities
 -- -----------------------------------------------------------------
-CREATE TYPE IF NOT EXISTS entity_type AS ENUM ('Drug','Disease','Gene','Protein');
+CREATE TYPE entity_type AS ENUM ('Drug','Disease','Gene','Protein');
 CREATE TABLE IF NOT EXISTS entities (
     id               SERIAL PRIMARY KEY,
     canonical_name   VARCHAR(255) NOT NULL,
@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_paper_entities_entity ON paper_entities (entity_i
 -- -----------------------------------------------------------------
 -- relationship_instances – extracted relationships with evidence
 -- -----------------------------------------------------------------
-CREATE TYPE IF NOT EXISTS relation_type AS ENUM ('treats','associates_with','affects','prevents');
+CREATE TYPE relation_type AS ENUM ('treats','associates_with','affects','prevents');
 CREATE TABLE IF NOT EXISTS relationship_instances (
     id                SERIAL PRIMARY KEY,
     paper_id          INT NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
