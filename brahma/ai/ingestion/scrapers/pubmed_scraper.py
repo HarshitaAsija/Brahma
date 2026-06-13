@@ -1,222 +1,197 @@
-import time
-import random
-import re
+# PubMed scraper using NCBI E-utilities — no browser, no CAPTCHA
+# Get free API key: https://www.ncbi.nlm.nih.gov/account/
+# Without key: 3 req/sec | With key: 10 req/sec
+NCBI_API_KEY = None
+
+import asyncio
+import httpx
+import xml.etree.ElementTree as ET
 import json
 import os
-from typing import Optional
 from datetime import datetime
-from playwright.sync_api import sync_playwright
 from ai.ingestion.scrapers.base import SCRAPER_VERSION
 
-CHROMIUM_PATH = "/snap/bin/chromium"
+BASE_SEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+BASE_FETCH  = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
-def _polite_sleep():
-    time.sleep(random.uniform(3.0, 5.0))
-
-def _decode(s):
-    return s.replace("&amp;","&").replace("&lt;","<").replace("&gt;",">").replace("&#39;","'")
-
-def _parse_pubmed_html(html: str, pmid: str, url: str) -> Optional[dict]:
-
-    title = None
-    title_meta = re.search(r'<meta name="citation_title" content="([^"]+)"', html)
-    if title_meta:
-        title = title_meta.group(1).strip()
-
-    authors_raw = re.findall(r'class="full-name"[^>]*>([^<]+)<', html)
-    authors = list(dict.fromkeys(authors_raw))
-
-    pmid_meta = re.search(r'<meta name="citation_pmid" content="([^"]+)"', html)
-    if pmid_meta:
-        pmid = pmid_meta.group(1).strip()
-
-    doi = None
-    doi_meta = re.search(r'<meta name="citation_doi" content="([^"]+)"', html)
-    if doi_meta:
-        doi = doi_meta.group(1).strip()
-
-    journal = None
-    journal_meta = re.search(r'<meta name="citation_journal_title" content="([^"]+)"', html)
-    if journal_meta:
-        journal = journal_meta.group(1).strip()
-
-    pub_date = None
-    date_meta = re.search(r'<meta name="citation_date" content="([^"]+)"', html)
-    if date_meta:
-        pub_date = date_meta.group(1).strip()
-
-    abstract = None
-    abstract_idx = html.find("abstract-content selected")
-    if abstract_idx > -1:
-        chunk = html[abstract_idx:abstract_idx+5000]
-        paras = re.findall(r"<p>(.*?)</p>", chunk, re.DOTALL)
-        parts = []
-        for p in paras:
-            clean = re.sub(r"<[^>]+>", " ", p)
-            clean = re.sub(r"\s+", " ", clean).strip()
-            if clean:
-                parts.append(clean)
-        abstract = " ".join(parts) if parts else None
-
-    mesh_terms = []
-    mesh_idx = html.find('id="mesh-terms"')
-    if mesh_idx > -1:
-        mesh_chunk = html[mesh_idx:mesh_idx+5000]
-        raw_mesh = re.findall(
-            r'class="keyword-actions-trigger[^"]*"[^>]*>\s*([^<]+?)\s*</button>',
-            mesh_chunk
-        )
-        mesh_terms = [_decode(m.strip()) for m in raw_mesh if m.strip()]
-
-    keywords = []
-    kw_idx = html.find('id="keywords"')
-    if kw_idx > -1:
-        kw_chunk = html[kw_idx:kw_idx+2000]
-        raw_kw = re.findall(
-            r'class="keyword-actions-trigger[^"]*"[^>]*>\s*([^<]+?)\s*</button>',
-            kw_chunk
-        )
-        keywords = [_decode(k.strip()) for k in raw_kw if k.strip()]
-
-    article_type = None
-    pub_idx = html.find('id="publication-types"')
-    if pub_idx > -1:
-        pub_chunk = html[pub_idx:pub_idx+1000]
-        pub_types = re.findall(
-            r'class="keyword-actions-trigger[^"]*"[^>]*>\s*([^<]+?)\s*</button>',
-            pub_chunk
-        )
-        if pub_types:
-            article_type = _decode(pub_types[0].strip())
-
-    language = "en"
-    lang_meta = re.search(r'<meta name="citation_language" content="([^"]+)"', html)
-    if lang_meta:
-        language = lang_meta.group(1).strip()
-
-    print(f"[PARSED] title={bool(title)} abstract={bool(abstract)} authors={len(authors)} doi={bool(doi)} mesh={len(mesh_terms)} type={article_type}")
-
-    return {
-        "doi": doi,
-        "pmid": pmid,
-        "title": title,
-        "abstract": abstract,
-        "full_text": None,
-        "sections": {},
-        "authors": authors,
-        "journal": journal,
-        "publication_date": pub_date,
-        "article_type": article_type,
-        "language": language,
-        "keywords": keywords,
-        "mesh_terms": mesh_terms,
-        "open_access": False,
-        "retracted": False,
-        "retraction_reason": None,
-        "source": "pubmed",
-        "source_external_id": pmid,
-        "source_url": url,
-        "fetch_timestamp": datetime.utcnow().isoformat(),
-        "scraper_version": SCRAPER_VERSION,
+async def _get_pmids(query: str, max_results: int, client: httpx.AsyncClient) -> list:
+    params = {
+        "db": "pubmed", "term": query,
+        "retmax": max_results, "retmode": "json",
     }
-
-def scrape_pubmed_article(pmid: str, page=None, output_dir: str = "ai/ingestion/output") -> Optional[dict]:
-    url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
-    os.makedirs(output_dir, exist_ok=True)
-    out_path = f"{output_dir}/pubmed_{pmid}.json"
-
-    if os.path.exists(out_path):
-        print(f"[SKIP] {pmid} already scraped")
-        with open(out_path) as f:
-            return json.load(f)
-
-    close_browser = False
-    browser_obj = None
-    playwright_obj = None
-
-    if page is None:
-        playwright_obj = sync_playwright().start()
-        browser_obj = playwright_obj.chromium.launch(
-            executable_path=CHROMIUM_PATH,
-            headless=False,
-            args=["--no-sandbox","--disable-blink-features=AutomationControlled"]
-        )
-        context = browser_obj.new_context(
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-            viewport={"width":1920,"height":1080},
-        )
-        context.add_init_script(
-            "Object.defineProperty(navigator,'webdriver',{get:()=>undefined})"
-        )
-        page = context.new_page()
-        close_browser = True
-
+    if NCBI_API_KEY:
+        params["api_key"] = NCBI_API_KEY
     try:
-        print(f"[SCRAPE] {url}")
-        page.goto(url, wait_until="networkidle", timeout=30000)
-        time.sleep(random.uniform(2.0, 3.0))
-        html = page.content()
+        resp = await client.get(BASE_SEARCH, params=params)
+        resp.raise_for_status()
+        ids = resp.json()["esearchresult"]["idlist"]
+        print(f"  [PubMed] Found {len(ids)} articles for: {query}")
+        return ids
     except Exception as e:
-        print(f"[ERROR] {pmid}: {e}")
-        return None
-    finally:
-        if close_browser:
-            if browser_obj:
-                browser_obj.close()
-            if playwright_obj:
-                playwright_obj.stop()
+        print(f"  [PubMed] Search error: {e}")
+        return []
 
-    article = _parse_pubmed_html(html, pmid, url)
-    if not article:
-        return None
+async def _fetch_batch(pmids: list, client: httpx.AsyncClient) -> list:
+    params = {
+        "db": "pubmed", "id": ",".join(pmids),
+        "retmode": "xml", "rettype": "abstract",
+    }
+    if NCBI_API_KEY:
+        params["api_key"] = NCBI_API_KEY
 
-    with open(out_path, "w") as f:
-        json.dump(article, f, indent=2, ensure_ascii=False)
+    for attempt in range(3):
+        try:
+            resp = await client.get(BASE_FETCH, params=params)
+            resp.raise_for_status()
+            break
+        except Exception as e:
+            if attempt == 2:
+                print(f"  [PubMed] Batch fetch failed: {e}")
+                return []
+            await asyncio.sleep(2 ** attempt)
 
-    print(f"[SAVED] pubmed_{pmid}.json")
-    return article
+    root = ET.fromstring(resp.text)
+    papers = []
 
-def search_and_scrape(query: str, max_results: int = 10, output_dir: str = "ai/ingestion/output") -> list:
-    os.makedirs(output_dir, exist_ok=True)
-    results = []
+    for article in root.findall(".//PubmedArticle"):
+        try:
+            pmid = article.findtext(".//PMID", "")
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            executable_path=CHROMIUM_PATH,
-            headless=False,
-            args=["--no-sandbox","--disable-blink-features=AutomationControlled"]
-        )
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-            viewport={"width":1920,"height":1080},
-        )
-        context.add_init_script(
-            "Object.defineProperty(navigator,'webdriver',{get:()=>undefined})"
-        )
-        page = context.new_page()
+            title_el = article.find(".//ArticleTitle")
+            title = "".join(title_el.itertext()).strip() if title_el is not None else ""
 
-        search_url = f"https://pubmed.ncbi.nlm.nih.gov/?term={query.replace(chr(32),chr(43))}"
-        print(f"[SEARCH] {search_url}")
-        page.goto(search_url, wait_until="networkidle", timeout=30000)
-        time.sleep(3)
-        html = page.content()
+            abstract_els = article.findall(".//AbstractText")
+            abstract = " ".join(
+                "".join(el.itertext()) for el in abstract_els
+            ).strip()
 
-        pmids = re.findall(r'href="/(\d{7,9})/"', html)
-        pmids = list(dict.fromkeys(pmids))[:max_results]
-        print(f"[SEARCH] Found {len(pmids)} articles: {pmids}")
+            authors = []
+            for a in article.findall(".//Author"):
+                last  = a.findtext("LastName", "")
+                first = a.findtext("ForeName", "")
+                name  = f"{first} {last}".strip()
+                if name:
+                    authors.append(name)
 
+            journal = article.findtext(".//Journal/Title", "")
+
+            doi = ""
+            for id_el in article.findall(".//ArticleId"):
+                if id_el.get("IdType") == "doi":
+                    doi = id_el.text or ""
+
+            year  = article.findtext(".//PubDate/Year", "")
+            month = article.findtext(".//PubDate/Month", "")
+            pub_date = f"{year}-{month}".strip("-") if year else ""
+
+            keywords = [
+                kw.text.strip()
+                for kw in article.findall(".//Keyword")
+                if kw.text
+            ]
+
+            mesh_terms = [
+                "".join(m.itertext()).strip()
+                for m in article.findall(".//DescriptorName")
+                if "".join(m.itertext()).strip()
+            ]
+
+            article_type = ""
+            pt = article.find(".//PublicationType")
+            if pt is not None:
+                article_type = "".join(pt.itertext()).strip()
+
+            language = article.findtext(".//Language", "eng")
+
+            word_count = len(abstract.split()) if abstract else 0
+
+            print(f"    ✓ {title[:70]}")
+
+            papers.append({
+                "doi":               doi,
+                "pmid":              pmid,
+                "title":             title,
+                "abstract":          abstract,
+                "full_text":         abstract,  # PubMed only has abstracts
+                "sections":          {},
+                "authors":           authors,
+                "journal":           journal,
+                "publication_date":  pub_date,
+                "article_type":      article_type,
+                "language":          language,
+                "keywords":          keywords,
+                "mesh_terms":        mesh_terms,
+                "open_access":       False,
+                "retracted":         False,
+                "retraction_reason": None,
+                "source":            "pubmed",
+                "source_external_id": pmid,
+                "source_url":        f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+                "word_count":        word_count,
+                "fetch_timestamp":   datetime.utcnow().isoformat(),
+                "scraper_version":   SCRAPER_VERSION,
+            })
+
+        except Exception as e:
+            print(f"  [PubMed] Parse error: {e}")
+
+    return papers
+
+async def run_pubmed(query: str, max_results: int = 10) -> list:
+    print(f"\n[PubMed] Query: {query}")
+    delay = 0.1 if NCBI_API_KEY else 0.35
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        pmids = await _get_pmids(query, max_results, client)
         if not pmids:
-            print("[ERROR] No results found")
-            browser.close()
             return []
 
-        for pmid in pmids:
-            article = scrape_pubmed_article(pmid, page=page, output_dir=output_dir)
-            if article:
-                results.append(article)
-            _polite_sleep()
+        all_papers = []
+        batch_size = 100
+        total_batches = (len(pmids) + batch_size - 1) // batch_size
 
-        browser.close()
+        for i in range(0, len(pmids), batch_size):
+            batch = pmids[i: i + batch_size]
+            batch_num = i // batch_size + 1
+            print(f"  [PubMed] Fetching batch {batch_num}/{total_batches} ({len(batch)} papers)...")
+            papers = await _fetch_batch(batch, client)
+            all_papers.extend(papers)
+            await asyncio.sleep(delay)
 
-    print(f"[DONE] Scraped {len(results)} PubMed articles for: {query}")
+    print(f"  [PubMed] Done. {len(all_papers)} papers fetched.")
+    return all_papers
+
+def search_and_scrape(query: str, max_results: int = 10,
+                      output_dir: str = "ai/ingestion/output") -> list:
+    """Synchronous entry point for PubMed scraping."""
+    os.makedirs(output_dir, exist_ok=True)
+    papers = asyncio.run(run_pubmed(query, max_results))
+
+    results = []
+    for paper in papers:
+        if not paper.get("title"):
+            continue
+        safe_id = f"pubmed_{paper['pmid']}"
+        out_path = f"{output_dir}/{safe_id}.json"
+        if os.path.exists(out_path):
+            print(f"  [SKIP] {safe_id} already saved")
+            continue
+        with open(out_path, "w") as f:
+            json.dump(paper, f, indent=2, ensure_ascii=False)
+        print(f"  [SAVED] {safe_id}.json | {paper['title'][:50]} | {paper['word_count']} words")
+        results.append(paper)
+
+    print(f"  [PubMed] Saved {len(results)} articles.")
     return results
+
+# Keep backward compatibility
+def scrape_pubmed_article(pmid: str, output_dir: str = "ai/ingestion/output") -> dict:
+    """Scrape a single PubMed article by PMID."""
+    papers = asyncio.run(run_pubmed(pmid, max_results=1))
+    if papers:
+        os.makedirs(output_dir, exist_ok=True)
+        out_path = f"{output_dir}/pubmed_{pmid}.json"
+        with open(out_path, "w") as f:
+            json.dump(papers[0], f, indent=2, ensure_ascii=False)
+        return papers[0]
+    return None
