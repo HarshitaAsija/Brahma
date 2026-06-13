@@ -2,6 +2,7 @@
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- -----------------------------------------------------------------
 -- papers – canonical (deduplicated) records
@@ -24,8 +25,8 @@ CREATE TABLE IF NOT EXISTS papers (
     updated_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_papers_title   ON papers USING GIN (title);
-CREATE INDEX IF NOT EXISTS idx_papers_abstract ON papers USING GIN (abstract);
+CREATE INDEX IF NOT EXISTS idx_papers_title   ON papers USING GIN (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_papers_abstract ON papers USING GIN (abstract gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_papers_doi    ON papers (doi);
 CREATE INDEX IF NOT EXISTS idx_papers_pmid   ON papers (pmid);
 
