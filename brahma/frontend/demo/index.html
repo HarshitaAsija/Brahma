@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRAHMA — Literature Ingestion Demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+    border-bottom: 1px solid #2d3748;
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .tagline { color: #94a3b8; font-size: 14px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
+
+  .search-card {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+  .search-card h2 { font-size: 18px; color: #a5b4fc; margin-bottom: 20px; }
+
+  .search-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
+
+  input[type=text], select, input[type=number] {
+    background: #0f1117;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    color: #e2e8f0;
+    padding: 10px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type=text]:focus, select:focus { border-color: #6366f1; }
+  input[type=text] { width: 320px; }
+  select { width: 150px; }
+  input[type=number] { width: 90px; }
+
+  button {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #2d3748;
+    padding-bottom: 0;
+  }
+  .tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    font-size: 14px;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    transition: all 0.2s;
+  }
+  .tab.active { color: #a5b4fc; background: #1a1f2e; border: 1px solid #2d3748; border-bottom: 1px solid #1a1f2e; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .status {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin: 16px 0;
+    display: none;
+  }
+  .status.info { background: #1e3a5f; border: 1px solid #2563eb; color: #93c5fd; display: block; }
+  .status.error { background: #3b0e0e; border: 1px solid #dc2626; color: #fca5a5; display: block; }
+  .status.success { background: #0d3320; border: 1px solid #16a34a; color: #86efac; display: block; }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .paper-card {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .paper-card:hover { border-color: #6366f1; }
+  .paper-source {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .src-pmc     { background: #1e3a5f; color: #93c5fd; }
+  .src-biorxiv { background: #1a2e1a; color: #86efac; }
+  .src-medrxiv { background: #2d1a3e; color: #c4b5fd; }
+  .src-pubmed  { background: #2e1a1a; color: #fca5a5; }
+  .src-pdf     { background: #2e2a1a; color: #fde68a; }
+
+  .paper-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .paper-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+  .paper-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .stat {
+    font-size: 11px;
+    color: #94a3b8;
+    background: #0f1117;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .stat.green { color: #86efac; }
+
+  .sections-list {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .section-tag {
+    font-size: 10px;
+    background: #1e293b;
+    color: #94a3b8;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* PDF upload */
+  .upload-area {
+    border: 2px dashed #374151;
+    border-radius: 12px;
+    padding: 48px;
+    text-align: center;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .upload-area:hover { border-color: #6366f1; }
+  .upload-area p { color: #64748b; margin-top: 8px; font-size: 14px; }
+  .upload-icon { font-size: 48px; }
+  #pdf-file { display: none; }
+
+  .summary-bar {
+    display: flex;
+    gap: 20px;
+    padding: 16px 20px;
+    background: #1a1f2e;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .summary-stat { text-align: center; }
+  .summary-stat .num { font-size: 24px; font-weight: 700; color: #a5b4fc; }
+  .summary-stat .lbl { font-size: 11px; color: #64748b; }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid #6366f1;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">⚗ BRAHMA</div>
+    <div class="tagline">Biomedical Research AI · Literature Ingestion Demo</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('search')">🔍 Search Papers</button>
+    <button class="tab" onclick="switchTab('pdf')">📄 Upload PDF</button>
+    <button class="tab" onclick="switchTab('results')">📚 All Results</button>
+  </div>
+
+  <!-- SEARCH TAB -->
+  <div id="tab-search" class="tab-content active">
+    <div class="search-card">
+      <h2>Search Biomedical Literature</h2>
+      <div class="search-row">
+        <div class="field">
+          <label>Search Query</label>
+          <input type="text" id="query" placeholder="e.g. cancer immunotherapy, type 2 diabetes" value="cancer immunotherapy">
+        </div>
+        <div class="field">
+          <label>Source</label>
+          <select id="source">
+            <option value="pmc">PMC (Full Text)</option>
+            <option value="pubmed">PubMed (Abstract)</option>
+            <option value="biorxiv">bioRxiv</option>
+            <option value="medrxiv">medRxiv</option>
+            <option value="all">All Sources</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Max Results</label>
+          <input type="number" id="max" value="3" min="1" max="20">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="search-btn" onclick="doSearch()">Search & Scrape</button>
+        </div>
+      </div>
+      <div id="search-status" class="status"></div>
+    </div>
+
+    <div id="search-results"></div>
+  </div>
+
+  <!-- PDF TAB -->
+  <div id="tab-pdf" class="tab-content">
+    <div class="search-card">
+      <h2>Upload PDF for Text Extraction</h2>
+      <p style="color:#94a3b8; font-size:13px; margin-bottom:20px;">
+        Supports both digital PDFs (text embedded) and scanned PDFs (image pages — OCR will run automatically).
+      </p>
+      <div class="upload-area" onclick="document.getElementById('pdf-file').click()">
+        <div class="upload-icon">📄</div>
+        <p>Click to select a PDF file</p>
+        <p style="font-size:12px; margin-top:4px;">Digital or scanned — OCR runs automatically on image pages</p>
+        <input type="file" id="pdf-file" accept=".pdf" onchange="uploadPDF(this)">
+      </div>
+      <div id="pdf-status" class="status"></div>
+      <div id="pdf-result"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div id="tab-results" class="tab-content">
+    <div class="search-card">
+      <h2>Previously Scraped Articles</h2>
+      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+        <div class="field">
+          <label>Filter by Source</label>
+          <select id="filter-source" onchange="loadResults()">
+            <option value="">All Sources</option>
+            <option value="pmc">PMC</option>
+            <option value="pubmed">PubMed</option>
+            <option value="biorxiv">bioRxiv</option>
+            <option value="medrxiv">medRxiv</option>
+            <option value="pdf">PDF</option>
+          </select>
+        </div>
+        <button onclick="loadResults()">Refresh</button>
+      </div>
+    </div>
+    <div id="results-status" class="status"></div>
+    <div id="all-results"></div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:8000/api/v1/ingestion';
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'results') loadResults();
+}
+
+function setStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.className = 'status ' + type;
+  el.innerHTML = msg;
+}
+
+function sourceClass(src) {
+  return 'src-' + (src || 'pmc');
+}
+
+function renderCards(articles, containerId) {
+  const container = document.getElementById(containerId);
+  if (!articles.length) {
+    container.innerHTML = '<p style="color:#64748b;text-align:center;padding:40px">No articles found.</p>';
+    return;
+  }
+
+  // Summary bar
+  const totalWords = articles.reduce((s, a) => s + (a.word_count || 0), 0);
+  const withFull = articles.filter(a => a.has_full_text).length;
+  container.innerHTML = `
+    <div class="summary-bar">
+      <div class="summary-stat"><div class="num">${articles.length}</div><div class="lbl">Articles</div></div>
+      <div class="summary-stat"><div class="num">${totalWords.toLocaleString()}</div><div class="lbl">Total Words</div></div>
+      <div class="summary-stat"><div class="num">${withFull}</div><div class="lbl">With Full Text</div></div>
+      <div class="summary-stat"><div class="num">${Math.round(totalWords/Math.max(articles.length,1)).toLocaleString()}</div><div class="lbl">Avg Words</div></div>
+    </div>
+    <div class="results-grid">${articles.map(renderCard).join('')}</div>
+  `;
+}
+
+function renderCard(a) {
+  const sections = a.section_count ? `<div class="sections-list">${
+    Array.from({length: Math.min(a.section_count, 6)}, (_,i) => `<span class="section-tag">§${i+1}</span>`).join('')
+    }${a.section_count > 6 ? `<span class="section-tag">+${a.section_count-6}</span>` : ''}</div>` : '';
+
+  return `
+  <div class="paper-card">
+    <span class="paper-source ${sourceClass(a.source)}">${a.source}</span>
+    <div class="paper-title">${a.title || 'Untitled'}</div>
+    <div class="paper-meta">${(a.authors||[]).slice(0,2).join(', ')}${(a.authors||[]).length > 2 ? ' et al.' : ''}
+      ${a.publication_date ? '· ' + a.publication_date : ''}</div>
+    ${a.doi ? `<div class="paper-meta" style="font-size:11px">DOI: ${a.doi}</div>` : ''}
+    <div class="paper-stats">
+      <span class="stat ${a.word_count > 1000 ? 'green' : ''}">${(a.word_count||0).toLocaleString()} words</span>
+      <span class="stat">${a.section_count} sections</span>
+      ${a.has_full_text ? '<span class="stat green">✓ Full text</span>' : '<span class="stat">Abstract only</span>'}
+      ${a.has_abstract ? '<span class="stat green">✓ Abstract</span>' : ''}
+    </div>
+    ${sections}
+  </div>`;
+}
+
+async function doSearch() {
+  const query = document.getElementById('query').value.trim();
+  const source = document.getElementById('source').value;
+  const max = parseInt(document.getElementById('max').value) || 3;
+
+  if (!query) { setStatus('search-status', 'Please enter a search query.', 'error'); return; }
+
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true;
+  document.getElementById('search-results').innerHTML = '';
+  setStatus('search-status', `<span class="spinner"></span>Scraping ${source.toUpperCase()} for "<b>${query}</b>"... this may take 30-60 seconds for browser-based sources.`, 'info');
+
+  try {
+    const resp = await fetch(`${API}/search`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query, source, max_results: max}),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || resp.statusText);
+    }
+    const data = await resp.json();
+    setStatus('search-status', `✓ Scraped ${data.total} articles from ${data.source.toUpperCase()} for "<b>${data.query}</b>"`, 'success');
+    renderCards(data.articles, 'search-results');
+  } catch(e) {
+    setStatus('search-status', `Error: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function uploadPDF(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  setStatus('pdf-status', `<span class="spinner"></span>Processing "${file.name}"... OCR will run automatically on scanned pages.`, 'info');
+  document.getElementById('pdf-result').innerHTML = '';
+
+  const form = new FormData();
+  form.append('file', file);
+
+  try {
+    const resp = await fetch(`${API}/pdf`, {method: 'POST', body: form});
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || resp.statusText);
+    }
+    const d = await resp.json();
+    setStatus('pdf-status',
+      `✓ "${d.filename}" processed${d.ocr_used ? ' <b>(OCR was used — scanned PDF detected)</b>' : ' (digital PDF)'}`,
+      'success');
+    document.getElementById('pdf-result').innerHTML = `
+      <div class="paper-card" style="margin-top:16px">
+        <span class="paper-source src-pdf">PDF${d.ocr_used ? ' · OCR' : ''}</span>
+        <div class="paper-title">${d.title || file.name}</div>
+        ${d.doi ? `<div class="paper-meta">DOI: ${d.doi}</div>` : ''}
+        ${(d.authors||[]).length ? `<div class="paper-meta">${d.authors.slice(0,3).join(', ')}</div>` : ''}
+        ${d.abstract ? `<div style="font-size:13px;color:#94a3b8;margin-top:10px;line-height:1.5">${d.abstract}</div>` : ''}
+        <div class="paper-stats" style="margin-top:12px">
+          <span class="stat green">${(d.word_count||0).toLocaleString()} words</span>
+          <span class="stat">${d.section_count} sections</span>
+          <span class="stat">${d.chunk_count} chunks</span>
+          ${d.ocr_used ? '<span class="stat" style="color:#fde68a">OCR used</span>' : '<span class="stat green">Digital PDF</span>'}
+        </div>
+        <div class="sections-list" style="margin-top:10px">
+          ${(d.sections||[]).map(s => `<span class="section-tag">${s}</span>`).join('')}
+        </div>
+        <div style="font-size:11px;color:#475569;margin-top:12px">Saved: ${d.saved_to}</div>
+      </div>`;
+  } catch(e) {
+    setStatus('pdf-status', `Error: ${e.message}`, 'error');
+  }
+}
+
+async function loadResults() {
+  const src = document.getElementById('filter-source').value;
+  setStatus('results-status', '<span class="spinner"></span>Loading...', 'info');
+  document.getElementById('all-results').innerHTML = '';
+
+  try {
+    const url = `${API}/results${src ? '?source='+src : ''}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(resp.statusText);
+    const data = await resp.json();
+    setStatus('results-status', `Found ${data.total} scraped articles on disk.`, 'success');
+    renderCards(data.articles, 'all-results');
+  } catch(e) {
+    setStatus('results-status', `Error: ${e.message}`, 'error');
+  }
+}
+</script>
+</body>
+</html>

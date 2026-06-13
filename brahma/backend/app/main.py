@@ -3,6 +3,7 @@ from app.core.config import settings
 import logging
 
 from app.api.routers.paper_router import router as paper_router
+from app.api.routers.ingestion_router import router as ingestion_router
 # Gene router removed – replaced by generalized Entity model
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ app = FastAPI(
 )
 
 app.include_router(paper_router, prefix=settings.API_V1_STR)
+app.include_router(ingestion_router, prefix=settings.API_V1_STR)
 # No gene router in MVP; entities are accessed via dedicated endpoints later
 
 @app.get("/")
