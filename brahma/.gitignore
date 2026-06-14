@@ -1,20 +1,13 @@
 # Python
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 .venv/
 
-# Output data — scraped JSONs should not be in git
+# Scraped output data - never commit JSONs
 ai/ingestion/output/
-backend/ai/ingestion/output/
-output/
-
-# Test PDFs
-ai/ingestion/tests/*.pdf
+data/
 
 # OS
 .DS_Store
-backend/app/**/__pycache__/
-**/__pycache__/
-data/output/
-data/

@@ -80,7 +80,7 @@ def _extract_metadata(text: str, doc) -> dict:
 
     return title, authors, doi, abstract
 
-def scrape_pdf(pdf_path: str, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/data/output/pdf") -> Optional[dict]:
+def scrape_pdf(pdf_path: str, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf") -> Optional[dict]:
     """
     F5 - PDF batch import.
     Extracts text and metadata from a PDF file using PyMuPDF.
@@ -155,7 +155,7 @@ def scrape_pdf(pdf_path: str, output_dir: str = "/home/shalu/brahma_workspace/Br
     print(f"[PARSED] title={bool(title)} abstract={bool(abstract)} doi={doi} sections={list(sections.keys())[:4]}")
     return result
 
-def batch_scrape_pdfs(pdf_folder: str, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/data/output/pdf") -> list:
+def batch_scrape_pdfs(pdf_folder: str, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf") -> list:
     """
     Scrape all PDFs in a folder.
     Use this to bulk import a folder of downloaded papers.

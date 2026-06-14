@@ -159,7 +159,7 @@ async def run_pubmed(query: str, max_results: int = 10) -> list:
     print(f"  [PubMed] Done. {len(all_papers)} papers fetched.")
     return all_papers
 
-def search_and_scrape(query: str, max_results: int = 10, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/data/output") -> list:
+def search_and_scrape(query: str, max_results: int = 10, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output") -> list:
     """Entry point — runs PMC scraper (has full text) via asyncio."""
     os.makedirs(output_dir, exist_ok=True)
 
