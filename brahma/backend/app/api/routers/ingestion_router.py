@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
-OUTPUT_DIR = "/home/shalu/brahma_workspace/Brahma/brahma/backend/ai/ingestion/output"
+OUTPUT_DIR = "/home/shalu/brahma_workspace/Brahma/brahma/data/output"
 
 
 # --------------------------------------------------------------------------- #
@@ -43,6 +43,9 @@ class ArticleSummary(BaseModel):
     doi: Optional[str]
     publication_date: Optional[str]
     authors: list
+    abstract: Optional[str]
+    journal: Optional[str]
+    keywords: Optional[list]
 
 
 class SearchResponse(BaseModel):
@@ -70,6 +73,9 @@ def _summarise(article: dict) -> ArticleSummary:
         doi=article.get("doi"),
         publication_date=str(article.get("publication_date") or ""),
         authors=article.get("authors") or [],
+        abstract=article.get("abstract") or "",
+        journal=article.get("journal") or "",
+        keywords=article.get("keywords") or [],
     )
 
 
@@ -90,7 +96,7 @@ def search_and_scrape(req: SearchRequest):
       all     — PMC + bioRxiv + medRxiv combined
 
     Returns a list of scraped article summaries.
-    Full JSON files are saved to ai/ingestion/output/.
+    Full JSON files are saved to /home/shalu/brahma_workspace/Brahma/brahma/data/output/.
     """
     valid_sources = {"pmc", "pubmed", "biorxiv", "medrxiv", "all"}
     if req.source not in valid_sources:
@@ -112,7 +118,18 @@ def search_and_scrape(req: SearchRequest):
             results = pmc_scrape(req.query, req.max_results, OUTPUT_DIR)
 
         elif req.source == "pubmed":
+            # PubMed gives abstracts only. We also try PMC for same papers to get full text.
             results = pub_scrape(req.query, req.max_results, OUTPUT_DIR)
+            # For each PubMed result, try to get full text from PMC using same query
+            try:
+                pmc_results = pmc_scrape(req.query, req.max_results, OUTPUT_DIR)
+                # Merge: add PMC results not already in results by DOI
+                existing_dois = {r.get("doi") for r in results if r.get("doi")}
+                for pr in pmc_results:
+                    if pr.get("doi") not in existing_dois:
+                        results.append(pr)
+            except Exception:
+                pass
 
         elif req.source in ("biorxiv", "medrxiv"):
             results = bio_scrape(
@@ -153,7 +170,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="File must be a PDF")
 
     # Save uploaded file temporarily
-    upload_dir = "ai/ingestion/output/pdf"
+    upload_dir = "/home/shalu/brahma_workspace/Brahma/brahma/data/output/pdf"
     os.makedirs(upload_dir, exist_ok=True)
     tmp_path = os.path.join(upload_dir, file.filename)
 
@@ -185,7 +202,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         "chunk_count": len(result.get("chunks") or []),
         "ocr_used":    result.get("ocr_used", False),
         "source":      "pdf",
-        "saved_to":    f"ai/ingestion/output/pdf/{file.filename}.json",
+        "saved_to":    f"/home/shalu/brahma_workspace/Brahma/brahma/data/output/pdf/{file.filename}.json",
     }
 
 

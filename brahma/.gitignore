@@ -16,3 +16,5 @@ ai/ingestion/tests/*.pdf
 .DS_Store
 backend/app/**/__pycache__/
 **/__pycache__/
+data/output/
+data/
