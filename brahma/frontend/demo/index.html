@@ -283,10 +283,13 @@ function srcLabel(s) {
 // ── BUILD FILENAME (matches how scrapers save files) ───────
 function buildFilename(a) {
   const id = a.source_external_id || '';
-  if (a.source === 'pmc') return id + '.json';
+  if (a.source === 'pmc') return 'PMC' + id.replace('PMC','') + '.json';
   if (a.source === 'pubmed') return 'pubmed_' + id + '.json';
-  if (a.source === 'biorxiv' || a.source === 'medrxiv')
-    return a.source + '_' + id.replace(/\//g,'_').replace(/\./g,'_') + '.json';
+  if (a.source === 'biorxiv' || a.source === 'medrxiv') {
+    // DOI: 10.1101/2025.07.24.666669 → biorxiv_10_1101_2025_07_24_666669.json
+    const safe = id.replace(/[\/\.]/g, '_');
+    return a.source + '_' + safe + '.json';
+  }
   if (a.source === 'pdf') return id.replace(/[^a-z0-9]/gi,'_').toLowerCase() + '.json';
   return id + '.json';
 }
