@@ -217,3 +217,17 @@ def list_results(source: Optional[str] = Query(None)):
                 continue
 
     return {"total": len(summaries), "articles": summaries}
+
+@router.get("/article/{filename}")
+def get_full_article(filename: str):
+    """Serve full article JSON from disk including full text and sections."""
+    import re
+    if not re.match(r'^[a-zA-Z0-9_.\-]+\.json$', filename):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    dirs = [OUTPUT_DIR, os.path.join(OUTPUT_DIR, "pdf")]
+    for d in dirs:
+        fpath = os.path.join(d, filename)
+        if os.path.exists(fpath):
+            with open(fpath, encoding="utf-8") as f:
+                return json.load(f)
+    raise HTTPException(status_code=404, detail=f"File {filename} not found on server")
