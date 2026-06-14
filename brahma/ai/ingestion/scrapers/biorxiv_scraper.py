@@ -188,7 +188,7 @@ def search_and_scrape(
     query: str,
     max_results: int = 10,
     server: str = "biorxiv",
-    output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output",
+    output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output",
 ) -> list:
     """
     Full pipeline for bioRxiv or medRxiv.
