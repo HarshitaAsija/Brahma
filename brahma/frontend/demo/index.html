@@ -466,7 +466,7 @@ async function uploadPDF(file) {
       authors: d.authors||[],
       doi: d.doi,
       source: 'pdf',
-      source_external_id: d.filename.replace('.pdf',''),
+      source_external_id: d.source_external_id || d.filename.replace('.pdf',''),
       word_count: d.word_count,
       section_count: d.section_count,
       has_full_text: true,
