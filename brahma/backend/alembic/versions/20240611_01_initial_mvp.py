@@ -6,10 +6,7 @@ Create Date: 2024-06-11 10:00:00.000000
 """
 
 from alembic import op
-import sqlalchemy as sa
-import pgvector.sqlalchemy
 
-# revision identifiers, used by Alembic.
 revision = "20240611_01_initial_mvp"
 down_revision = None
 branch_labels = None
@@ -17,172 +14,138 @@ depends_on = None
 
 
 def upgrade():
-    # Enable pgvector extension
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    op.execute("""
+        CREATE EXTENSION IF NOT EXISTS vector;
+        CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-    # --------------------------------------------------------------
-    # papers
-    # --------------------------------------------------------------
-    op.create_table(
-        "papers",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("title", sa.Text, nullable=False),
-        sa.Column("abstract", sa.Text, nullable=False),
-        sa.Column("full_text", sa.Text),
-        sa.Column("authors", sa.JSON, nullable=False),
-        sa.Column("journal", sa.String(255), nullable=False),
-        sa.Column("publication_date", sa.Date, nullable=False),
-        sa.Column("doi", sa.String(255), unique=True),
-        sa.Column("pmid", sa.String(255), unique=True),
-        sa.Column("url", sa.Text, nullable=False),
-        sa.Column("source", sa.String(100), server_default=sa.text("'pubmed'")),
-        sa.Column("open_access", sa.String(10), server_default=sa.text("'false'")),
-        sa.Column("embedding", pgvector.sqlalchemy.Vector(1536)),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("updated_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-    )
-    op.create_index("idx_papers_title", "papers", ["title"], postgresql_using="gin")
-    op.create_index("idx_papers_abstract", "papers", ["abstract"], postgresql_using="gin")
-    op.create_index("idx_papers_doi", "papers", ["doi"])
-    op.create_index("idx_papers_pmid", "papers", ["pmid"])
+        CREATE TYPE entity_type AS ENUM ('Drug', 'Disease', 'Gene', 'Protein');
+        CREATE TYPE relation_type AS ENUM ('treats', 'associates_with', 'affects', 'prevents');
+        CREATE TYPE pipeline_status AS ENUM ('pending', 'running', 'completed', 'failed');
 
-    # --------------------------------------------------------------
-    # raw_papers
-    # --------------------------------------------------------------
-    op.create_table(
-        "raw_papers",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("ingestion_hash", sa.String(255), nullable=False, unique=True),
-        sa.Column("raw_title", sa.Text, nullable=False),
-        sa.Column("abstract", sa.Text),
-        sa.Column("full_text", sa.Text),
-        sa.Column("source", sa.String(100), server_default=sa.text("'pubmed'")),
-        sa.Column("source_external_id", sa.String(255), nullable=False),
-        sa.Column("source_url", sa.Text, nullable=False),
-        sa.Column("doi", sa.String(255)),
-        sa.Column("pmid", sa.String(255), unique=True),
-        sa.Column("authors", sa.JSON, nullable=False),
-        sa.Column("journal", sa.String(255), nullable=False),
-        sa.Column("publication_date", sa.Date, nullable=False),
-        sa.Column("fetch_timestamp", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-    )
+        CREATE TABLE papers (
+            id               SERIAL PRIMARY KEY,
+            title            TEXT NOT NULL,
+            abstract         TEXT NOT NULL,
+            full_text        TEXT,
+            authors          JSON NOT NULL,
+            journal          VARCHAR(255) NOT NULL,
+            publication_date DATE NOT NULL,
+            doi              VARCHAR(255) UNIQUE,
+            pmid             VARCHAR(255) UNIQUE,
+            url              TEXT NOT NULL,
+            source           VARCHAR(100) DEFAULT 'pubmed',
+            open_access      VARCHAR(10)  DEFAULT 'false',
+            embedding        VECTOR(1536),
+            created_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updated_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
 
-    # --------------------------------------------------------------
-    # entity_type enum
-    # --------------------------------------------------------------
-    entity_type = sa.Enum("Drug", "Disease", "Gene", "Protein", name="entity_type")
-    entity_type.create(op.get_bind(), checkfirst=True)
+        CREATE INDEX idx_papers_title    ON papers USING GIN (title gin_trgm_ops);
+        CREATE INDEX idx_papers_abstract ON papers USING GIN (abstract gin_trgm_ops);
+        CREATE INDEX idx_papers_doi      ON papers (doi);
+        CREATE INDEX idx_papers_pmid     ON papers (pmid);
 
-    # --------------------------------------------------------------
-    # entities
-    # --------------------------------------------------------------
-    op.create_table(
-        "entities",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("canonical_name", sa.String(255), nullable=False),
-        sa.Column("entity_type", entity_type, nullable=False),
-        sa.Column("description", sa.Text),
-        sa.Column("embedding", pgvector.sqlalchemy.Vector(1536)),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.UniqueConstraint("canonical_name", "entity_type", name="uq_entities_canonical_type"),
-    )
-    op.create_index("idx_entities_name", "entities", ["canonical_name"], unique=False)
-    op.create_index("idx_entities_type", "entities", ["entity_type"], unique=False)
+        CREATE TABLE raw_papers (
+            id                 SERIAL PRIMARY KEY,
+            ingestion_hash     VARCHAR(255) UNIQUE NOT NULL,
+            raw_title          TEXT NOT NULL,
+            abstract           TEXT,
+            full_text          TEXT,
+            source             VARCHAR(100) DEFAULT 'pubmed',
+            source_external_id VARCHAR(255) NOT NULL,
+            source_url         TEXT NOT NULL,
+            doi                VARCHAR(255),
+            pmid               VARCHAR(255) UNIQUE,
+            authors            JSON NOT NULL,
+            journal            VARCHAR(255) NOT NULL,
+            publication_date   DATE NOT NULL,
+            fetch_timestamp    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            created_at         TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
 
-    # --------------------------------------------------------------
-    # entity_aliases
-    # --------------------------------------------------------------
-    op.create_table(
-        "entity_aliases",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("alias", sa.String(255), nullable=False),
-        sa.Column("entity_id", sa.Integer, sa.ForeignKey("entities.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("source", sa.String(100), server_default=sa.text("'scispaCy'")),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.UniqueConstraint("alias", "entity_id", name="uq_entity_aliases_alias_entity"),
-    )
-    op.create_index("idx_entity_aliases_alias", "entity_aliases", ["alias"], unique=False)
+        CREATE TABLE entities (
+            id               SERIAL PRIMARY KEY,
+            canonical_name   VARCHAR(255) NOT NULL,
+            entity_type      entity_type NOT NULL,
+            description      TEXT,
+            embedding        VECTOR(1536),
+            created_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (canonical_name, entity_type)
+        );
 
-    # --------------------------------------------------------------
-    # paper_entities
-    # --------------------------------------------------------------
-    op.create_table(
-        "paper_entities",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("paper_id", sa.Integer, sa.ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("entity_id", sa.Integer, sa.ForeignKey("entities.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("section", sa.String(100), nullable=False),
-        sa.Column("evidence_text", sa.Text, nullable=False),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.UniqueConstraint("paper_id", "entity_id", "section", name="uq_paper_entities_paper_entity_section"),
-    )
-    op.create_index("idx_paper_entities_paper", "paper_entities", ["paper_id"], unique=False)
-    op.create_index("idx_paper_entities_entity", "paper_entities", ["entity_id"], unique=False)
+        CREATE INDEX idx_entities_name ON entities (canonical_name);
+        CREATE INDEX idx_entities_type ON entities (entity_type);
 
-    # --------------------------------------------------------------
-    # relation_type enum
-    # --------------------------------------------------------------
-    relation_type = sa.Enum("treats", "associates_with", "affects", "prevents", name="relation_type")
-    relation_type.create(op.get_bind(), checkfirst=True)
+        CREATE TABLE entity_aliases (
+            id         SERIAL PRIMARY KEY,
+            alias      VARCHAR(255) NOT NULL,
+            entity_id  INT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+            source     VARCHAR(100) DEFAULT 'scispaCy',
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (alias, entity_id)
+        );
 
-    # --------------------------------------------------------------
-    # relationship_instances
-    # --------------------------------------------------------------
-    op.create_table(
-        "relationship_instances",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("paper_id", sa.Integer, sa.ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("entity_1_id", sa.Integer, sa.ForeignKey("entities.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("entity_2_id", sa.Integer, sa.ForeignKey("entities.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("relation_type", relation_type, nullable=False),
-        sa.Column("evidence_sentence", sa.Text, nullable=False),
-        sa.Column("section", sa.String(100), nullable=False),
-        sa.Column("confidence_score", sa.Float, nullable=False),
-        sa.Column("model_version", sa.String(100), server_default=sa.text("'scispaCy-0.4.0'")),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.UniqueConstraint("paper_id", "entity_1_id", "entity_2_id", "relation_type", name="uq_relationship_instances_paper_entities_type"),
-    )
-    op.create_index("idx_rel_inst_ent1", "relationship_instances", ["entity_1_id"], unique=False)
-    op.create_index("idx_rel_inst_ent2", "relationship_instances", ["entity_2_id"], unique=False)
-    op.create_index("idx_rel_inst_type", "relationship_instances", ["relation_type"], unique=False)
+        CREATE INDEX idx_entity_aliases_alias ON entity_aliases (alias);
 
-    # --------------------------------------------------------------
-    # pipeline_status enum
-    # --------------------------------------------------------------
-    pipeline_status = sa.Enum("pending", "running", "completed", "failed", name="pipeline_status")
-    pipeline_status.create(op.get_bind(), checkfirst=True)
+        CREATE TABLE paper_entities (
+            id            SERIAL PRIMARY KEY,
+            paper_id      INT NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+            entity_id     INT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+            section       VARCHAR(100) NOT NULL,
+            evidence_text TEXT NOT NULL,
+            created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (paper_id, entity_id, section)
+        );
 
-    # --------------------------------------------------------------
-    # pipeline_tasks
-    # --------------------------------------------------------------
-    op.create_table(
-        "pipeline_tasks",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("task_type", sa.String(100), nullable=False),
-        sa.Column("paper_id", sa.Integer, sa.ForeignKey("papers.id", ondelete="SET NULL")),
-        sa.Column("status", pipeline_status, nullable=False, server_default=sa.text("'pending'")),
-        sa.Column("error_message", sa.Text),
-        sa.Column("model_version", sa.String(100)),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("completed_at", sa.TIMESTAMP(timezone=True)),
-    )
-    op.create_index("idx_pipeline_status", "pipeline_tasks", ["status"], unique=False)
-    op.create_index("idx_pipeline_paper", "pipeline_tasks", ["paper_id"], unique=False)
+        CREATE INDEX idx_paper_entities_paper  ON paper_entities (paper_id);
+        CREATE INDEX idx_paper_entities_entity ON paper_entities (entity_id);
+
+        CREATE TABLE relationship_instances (
+            id                SERIAL PRIMARY KEY,
+            paper_id          INT NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+            entity_1_id       INT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+            entity_2_id       INT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+            relation_type     relation_type NOT NULL,
+            evidence_sentence TEXT NOT NULL,
+            section           VARCHAR(100) NOT NULL,
+            confidence_score  FLOAT NOT NULL CHECK (confidence_score BETWEEN 0 AND 1),
+            model_version     VARCHAR(100) DEFAULT 'scispaCy-0.4.0',
+            created_at        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (paper_id, entity_1_id, entity_2_id, relation_type)
+        );
+
+        CREATE INDEX idx_rel_inst_ent1 ON relationship_instances (entity_1_id);
+        CREATE INDEX idx_rel_inst_ent2 ON relationship_instances (entity_2_id);
+        CREATE INDEX idx_rel_inst_type ON relationship_instances (relation_type);
+
+        CREATE TABLE pipeline_tasks (
+            id            SERIAL PRIMARY KEY,
+            task_type     VARCHAR(100) NOT NULL,
+            paper_id      INT REFERENCES papers(id) ON DELETE SET NULL,
+            status        pipeline_status NOT NULL DEFAULT 'pending',
+            error_message TEXT,
+            model_version VARCHAR(100),
+            created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            completed_at  TIMESTAMPTZ
+        );
+
+        CREATE INDEX idx_pipeline_status ON pipeline_tasks (status);
+        CREATE INDEX idx_pipeline_paper  ON pipeline_tasks (paper_id);
+    """)
 
 
 def downgrade():
-    # Drop tables in reverse order
-    op.drop_table("pipeline_tasks")
-    op.drop_table("relationship_instances")
-    op.drop_table("paper_entities")
-    op.drop_table("entity_aliases")
-    op.drop_table("entities")
-    op.drop_table("raw_papers")
-    op.drop_table("papers")
-    # Drop enums
-    op.execute("DROP TYPE IF EXISTS pipeline_status")
-    op.execute("DROP TYPE IF EXISTS relation_type")
-    op.execute("DROP TYPE IF EXISTS entity_type")
-    # Drop extension (optional – safe to keep)
-    op.execute("DROP EXTENSION IF EXISTS vector")
+    op.execute("""
+        DROP TABLE IF EXISTS pipeline_tasks CASCADE;
+        DROP TABLE IF EXISTS relationship_instances CASCADE;
+        DROP TABLE IF EXISTS paper_entities CASCADE;
+        DROP TABLE IF EXISTS entity_aliases CASCADE;
+        DROP TABLE IF EXISTS entities CASCADE;
+        DROP TABLE IF EXISTS raw_papers CASCADE;
+        DROP TABLE IF EXISTS papers CASCADE;
+        DROP TYPE IF EXISTS pipeline_status;
+        DROP TYPE IF EXISTS relation_type;
+        DROP TYPE IF EXISTS entity_type;
+        DROP EXTENSION IF EXISTS vector;
+        DROP EXTENSION IF EXISTS pg_trgm;
+    """)
