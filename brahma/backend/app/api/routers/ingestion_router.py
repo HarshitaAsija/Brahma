@@ -170,7 +170,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="File must be a PDF")
 
     # Save uploaded file temporarily
-    upload_dir = "/home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf"
+    upload_dir = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf"
     os.makedirs(upload_dir, exist_ok=True)
     tmp_path = os.path.join(upload_dir, file.filename)
 
@@ -202,7 +202,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         "chunk_count": len(result.get("chunks") or []),
         "ocr_used":    result.get("ocr_used", False),
         "source":      "pdf",
-        "saved_to":    f"/home/shalu/brahma_workspace/Brahma/brahma//home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf/{file.filename}.json",
+        "saved_to":    f"/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf/{file.filename}.json",
     }
 
 
