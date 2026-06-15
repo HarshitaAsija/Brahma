@@ -197,7 +197,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         "authors":     result.get("authors"),
         "abstract":    result.get("abstract", "")[:500] + "..."
                        if result.get("abstract") else None,
-        "word_count":  result.get("word_count", 0),
+        "word_count":  len((result.get("full_text") or "").split()),
         "section_count": len(result.get("sections") or {}),
         "sections":    list((result.get("sections") or {}).keys()),
         "chunk_count": len(result.get("chunks") or []),
