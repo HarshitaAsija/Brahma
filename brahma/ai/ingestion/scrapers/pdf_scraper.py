@@ -142,7 +142,7 @@ def scrape_pdf(pdf_path: str, output_dir: str = "/home/shalu/brahma_workspace/Br
         "retracted": False,
         "retraction_reason": None,
         "source": "pdf",
-        "source_external_id": doi or os.path.basename(pdf_path),
+        "source_external_id": fname.replace(".json", ""),  # matches saved filename e.g. 843_pdf
         "source_url": f"file://{os.path.abspath(pdf_path)}",
         "fetch_timestamp": datetime.utcnow().isoformat(),
         "scraper_version": SCRAPER_VERSION,

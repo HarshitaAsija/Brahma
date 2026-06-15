@@ -191,6 +191,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     # Return summary (not full text — too large for API response)
     return {
         "filename":    file.filename,
+        "source_external_id": result.get("source_external_id", ""),
         "title":       result.get("title"),
         "doi":         result.get("doi"),
         "authors":     result.get("authors"),

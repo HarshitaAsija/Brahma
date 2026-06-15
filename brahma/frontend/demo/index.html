@@ -290,7 +290,7 @@ function buildFilename(a) {
     const safe = id.replace(/[\/\.]/g, '_');
     return a.source + '_' + safe + '.json';
   }
-  if (a.source === 'pdf') return id.replace(/[^a-z0-9]/gi,'_').toLowerCase() + '.json';
+  if (a.source === 'pdf') return id + '.json';  // id is already safe_name e.g. 843_pdf
   return id + '.json';
 }
 
