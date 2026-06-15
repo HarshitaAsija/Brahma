@@ -1,7 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 
-
 class Settings(BaseSettings):
     # App
     PROJECT_NAME: str = "Brahma"
@@ -46,6 +45,8 @@ class Settings(BaseSettings):
 
     model_config = {"case_sensitive": True, "env_file": ".env"}
 
+from pydantic_settings import BaseSettings
+from typing import List, Optional
 
 settings = Settings()
 
