@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRAHMA — Biomedical Research AI</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0e1a;color:#e2e8f0;min-height:100vh}
+
+/* HEADER */
+header{background:linear-gradient(135deg,#0f1729 0%,#111827 100%);border-bottom:1px solid #1e2d4a;padding:16px 40px;display:flex;align-items:center;justify-content:space-between}
+.logo-wrap{display:flex;align-items:center;gap:14px}
+.logo{font-size:26px;font-weight:900;background:linear-gradient(90deg,#6366f1,#a78bfa,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tagline{color:#64748b;font-size:13px;margin-top:2px}
+.header-stats{display:flex;gap:24px}
+.hstat{text-align:center}
+.hstat .n{font-size:18px;font-weight:700;color:#a78bfa}
+.hstat .l{font-size:10px;color:#475569;text-transform:uppercase}
+
+/* SEARCH BAR — Google Scholar style */
+.search-hero{background:linear-gradient(180deg,#0f1729 0%,#0a0e1a 100%);padding:48px 20px 32px;text-align:center;border-bottom:1px solid #1e293b}
+.search-hero h1{font-size:32px;font-weight:800;background:linear-gradient(90deg,#6366f1,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.search-hero p{color:#64748b;font-size:14px;margin-bottom:28px}
+.search-bar-wrap{display:flex;max-width:720px;margin:0 auto;background:#1e293b;border:1.5px solid #334155;border-radius:50px;overflow:hidden;transition:border-color 0.2s;box-shadow:0 4px 24px #6366f120}
+.search-bar-wrap:focus-within{border-color:#6366f1}
+.search-bar-wrap input{flex:1;background:transparent;border:none;padding:14px 24px;font-size:15px;color:#e2e8f0;outline:none}
+.search-bar-wrap input::placeholder{color:#475569}
+.search-bar-wrap select{background:#0f1729;border:none;border-left:1px solid #334155;color:#a5b4fc;padding:0 16px;font-size:13px;outline:none;cursor:pointer}
+.search-bar-wrap button{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;padding:14px 28px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.2s;white-space:nowrap}
+.search-bar-wrap button:hover{opacity:0.85}
+.search-bar-wrap button:disabled{opacity:0.4;cursor:not-allowed}
+.source-pills{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.pill{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:all 0.2s;background:#1e293b;color:#64748b}
+.pill:hover{border-color:#6366f1;color:#a5b4fc}
+.pill.active{background:#6366f115;border-color:#6366f1;color:#a5b4fc}
+.max-wrap{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:12px;color:#475569;font-size:13px}
+.max-wrap input{width:60px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:4px 8px;font-size:13px;outline:none;text-align:center}
+
+/* TABS */
+.nav-tabs{display:flex;gap:0;border-bottom:1px solid #1e293b;background:#0a0e1a;padding:0 40px}
+.nav-tab{padding:12px 20px;font-size:13px;color:#64748b;cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;transition:all 0.2s;font-weight:500}
+.nav-tab:hover{color:#a5b4fc}
+.nav-tab.active{color:#a5b4fc;border-bottom-color:#6366f1}
+
+/* CONTENT */
+.content{max-width:1200px;margin:0 auto;padding:32px 20px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* STATUS */
+.status{padding:12px 18px;border-radius:10px;font-size:13px;margin:16px 0;display:none;line-height:1.5}
+.status.info{background:#1e3a5f22;border:1px solid #2563eb55;color:#93c5fd;display:block}
+.status.error{background:#dc262622;border:1px solid #dc262655;color:#fca5a5;display:block}
+.status.success{background:#16a34a22;border:1px solid #16a34a55;color:#86efac;display:block}
+
+/* RESULTS */
+.results-meta{display:flex;gap:24px;padding:16px 0;margin-bottom:16px;border-bottom:1px solid #1e293b;flex-wrap:wrap}
+.rm{text-align:center}
+.rm .n{font-size:20px;font-weight:700;color:#a78bfa}
+.rm .l{font-size:11px;color:#475569;text-transform:uppercase}
+
+.papers-list{display:flex;flex-direction:column;gap:16px}
+
+/* PAPER CARD — Scholar style */
+.paper-card{background:#111827;border:1px solid #1e293b;border-radius:12px;padding:22px 24px;transition:all 0.2s;position:relative}
+.paper-card:hover{border-color:#334155;background:#131f35;box-shadow:0 4px 20px #00000040}
+.card-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.source-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+.src-pmc{background:#1e3a5f;color:#60a5fa;border:1px solid #1d4ed855}
+.src-biorxiv{background:#14291a;color:#4ade80;border:1px solid #16a34a55}
+.src-medrxiv{background:#2d1a3e;color:#c084fc;border:1px solid #9333ea55}
+.src-pubmed{background:#2e1a1a;color:#f87171;border:1px solid #dc262655}
+.src-pdf{background:#2e2a1a;color:#fbbf24;border:1px solid #d9770655}
+.fulltext-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:#16a34a22;color:#4ade80;border:1px solid #16a34a44;margin-left:6px}
+.abstract-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:#d9770622;color:#fbbf24;border:1px solid #d9770644;margin-left:6px}
+
+.paper-title{font-size:16px;font-weight:700;color:#e2e8f0;line-height:1.4;margin-bottom:6px}
+.paper-title a{color:#93c5fd;text-decoration:none}
+.paper-title a:hover{text-decoration:underline}
+.paper-authors{font-size:13px;color:#64748b;margin-bottom:4px}
+.paper-journal{font-size:12px;color:#475569;margin-bottom:10px}
+.paper-abstract{font-size:13px;color:#94a3b8;line-height:1.6;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-overflow:hidden;overflow:hidden}
+.paper-abstract.expanded{-webkit-line-clamp:unset}
+
+.paper-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.stat-chip{font-size:11px;padding:3px 9px;border-radius:6px;background:#1e293b;color:#94a3b8;border:1px solid #334155}
+.stat-chip.green{color:#4ade80;border-color:#16a34a44}
+.stat-chip.blue{color:#60a5fa;border-color:#2563eb44}
+.stat-chip.yellow{color:#fbbf24;border-color:#d9770644}
+
+/* ACTION BUTTONS */
+.card-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;text-decoration:none;white-space:nowrap}
+.btn:hover{opacity:0.85;transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white}
+.btn-pmc{background:#1e3a5f;color:#60a5fa;border:1px solid #1d4ed855}
+.btn-pubmed{background:#2e1a1a;color:#f87171;border:1px solid #dc262655}
+.btn-biorxiv{background:#14291a;color:#4ade80;border:1px solid #16a34a55}
+.btn-medrxiv{background:#2d1a3e;color:#c084fc;border:1px solid #9333ea55}
+.btn-journal{background:#1e293b;color:#94a3b8;border:1px solid #334155}
+.btn-json{background:#1e3352;color:#60a5fa;border:1px solid #2563eb44}
+.btn-pdf-dl{background:#1a2e1a;color:#4ade80;border:1px solid #16a34a44}
+.btn-details{background:#1e293b;color:#a78bfa;border:1px solid #6366f144}
+.divider{width:1px;height:16px;background:#334155;margin:0 2px}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:#000000dd;z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:#111827;border:1px solid #334155;border-radius:16px;padding:32px;max-width:740px;width:100%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 24px 80px #00000080}
+.modal-close{position:absolute;top:16px;right:16px;background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px}
+.modal-close:hover{background:#334155;color:white;opacity:1}
+.modal h2{color:#a5b4fc;margin-bottom:20px;font-size:17px;line-height:1.4;padding-right:60px}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.modal-field h4{font-size:11px;color:#6366f1;text-transform:uppercase;margin-bottom:5px;letter-spacing:0.05em}
+.modal-field p{font-size:13px;color:#94a3b8;line-height:1.5}
+.modal-field.full{grid-column:1/-1}
+.modal-abstract{font-size:13px;color:#94a3b8;line-height:1.7;background:#0f1729;padding:14px;border-radius:8px;border-left:3px solid #6366f1;max-height:200px;overflow-y:auto}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid #1e293b}
+
+/* PDF UPLOAD */
+.upload-zone{border:2px dashed #334155;border-radius:14px;padding:56px 24px;text-align:center;cursor:pointer;transition:all 0.2s;background:#0f1729}
+.upload-zone:hover{border-color:#6366f1;background:#6366f108}
+.upload-zone.dragover{border-color:#6366f1;background:#6366f115}
+.upload-icon{font-size:52px;margin-bottom:12px}
+.upload-zone h3{color:#a5b4fc;margin-bottom:8px}
+.upload-zone p{color:#475569;font-size:13px}
+#pdf-file-input{display:none}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.filter-bar select{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;padding:8px 12px;font-size:13px;outline:none}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.empty{text-align:center;padding:60px 20px;color:#334155}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty p{font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div>
+      <div class="logo">⚗ BRAHMA</div>
+      <div class="tagline">Biomedical Research AI · Literature Ingestion</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat"><div class="n" id="hstat-total">—</div><div class="l">Scraped</div></div>
+    <div class="hstat"><div class="n" id="hstat-words">—</div><div class="l">Total Words</div></div>
+    <div class="hstat"><div class="n" id="hstat-sources">4</div><div class="l">Sources</div></div>
+  </div>
+</header>
+
+<!-- SEARCH HERO -->
+<div class="search-hero">
+  <h1>Search Biomedical Literature</h1>
+  <p>Search across PMC, PubMed, bioRxiv and medRxiv — full text extracted automatically</p>
+  <div class="search-bar-wrap">
+    <input type="text" id="q" placeholder="e.g. cancer immunotherapy, CRISPR gene editing, Alzheimer tau..." value="cancer immunotherapy">
+    <select id="src-select" title="Source">
+      <option value="pmc">PMC</option>
+      <option value="pubmed">PubMed</option>
+      <option value="biorxiv">bioRxiv</option>
+      <option value="medrxiv">medRxiv</option>
+      <option value="all">All Sources</option>
+    </select>
+    <button id="search-btn" onclick="doSearch()">🔍 Search</button>
+  </div>
+  <div class="source-pills">
+    <span class="pill active" onclick="setPill(this,'pmc')">PMC · Full Text</span>
+    <span class="pill" onclick="setPill(this,'pubmed')">PubMed · Abstracts</span>
+    <span class="pill" onclick="setPill(this,'biorxiv')">bioRxiv · Preprints</span>
+    <span class="pill" onclick="setPill(this,'medrxiv')">medRxiv · Preprints</span>
+    <span class="pill" onclick="setPill(this,'all')">All Sources</span>
+  </div>
+  <div class="max-wrap">
+    Max results: <input type="number" id="max-n" value="3" min="1" max="20">
+  </div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <button class="nav-tab active" onclick="switchTab('search',this)">🔍 Search Results</button>
+  <button class="nav-tab" onclick="switchTab('pdf',this)">📄 Upload PDF</button>
+  <button class="nav-tab" onclick="switchTab('saved',this)">💾 All Saved Papers</button>
+</div>
+
+<div class="content">
+  <!-- SEARCH RESULTS -->
+  <div id="tab-search" class="tab-panel active">
+    <div id="search-status" class="status"></div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- PDF UPLOAD -->
+  <div id="tab-pdf" class="tab-panel">
+    <div class="upload-zone" id="upload-zone"
+      onclick="document.getElementById('pdf-file-input').click()"
+      ondragover="event.preventDefault();this.classList.add('dragover')"
+      ondragleave="this.classList.remove('dragover')"
+      ondrop="handleDrop(event)">
+      <div class="upload-icon">📄</div>
+      <h3>Upload a PDF Paper</h3>
+      <p>Click or drag & drop a PDF file here</p>
+      <p style="margin-top:8px;font-size:12px;color:#334155">Digital PDFs → fast text extraction &nbsp;|&nbsp; Scanned PDFs → OCR runs automatically via Tesseract</p>
+      <input type="file" id="pdf-file-input" accept=".pdf" onchange="uploadPDF(this.files[0])">
+    </div>
+    <div id="pdf-status" class="status" style="margin-top:16px"></div>
+    <div id="pdf-result" style="margin-top:16px"></div>
+  </div>
+
+  <!-- SAVED PAPERS -->
+  <div id="tab-saved" class="tab-panel">
+    <div class="filter-bar">
+      <select id="filter-src" onchange="loadSaved()">
+        <option value="">All Sources</option>
+        <option value="pmc">PMC</option>
+        <option value="pubmed">PubMed</option>
+        <option value="biorxiv">bioRxiv</option>
+        <option value="medrxiv">medRxiv</option>
+        <option value="pdf">PDF Upload</option>
+      </select>
+      <button class="btn btn-journal" onclick="loadSaved()">↻ Refresh</button>
+    </div>
+    <div id="saved-status" class="status"></div>
+    <div id="saved-results"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕ Close</button>
+    <h2 id="m-title"></h2>
+    <div class="modal-grid">
+      <div class="modal-field"><h4>Authors</h4><p id="m-authors"></p></div>
+      <div class="modal-field"><h4>Journal / Date</h4><p id="m-journal"></p></div>
+      <div class="modal-field"><h4>DOI</h4><p id="m-doi"></p></div>
+      <div class="modal-field"><h4>Source</h4><p id="m-source"></p></div>
+      <div class="modal-field"><h4>Content</h4><p id="m-stats"></p></div>
+      <div class="modal-field"><h4>Keywords</h4><p id="m-keywords"></p></div>
+      <div class="modal-field full"><h4>Abstract</h4><div class="modal-abstract" id="m-abstract"></div></div>
+    </div>
+    <div class="modal-actions" id="m-actions"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000/api/v1/ingestion';
+
+// ── PILL / SOURCE SELECTION ────────────────────────────────
+function setPill(el, val) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('src-select').value = val;
+}
+
+// ── TAB SWITCHING ──────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'saved') loadSaved();
+}
+
+function setStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.className = 'status ' + type;
+  el.innerHTML = msg;
+}
+
+// ── SOURCE HELPERS ─────────────────────────────────────────
+function srcClass(s) { return 'src-' + (s||'pmc'); }
+function srcLabel(s) {
+  return {pmc:'PMC',pubmed:'PubMed',biorxiv:'bioRxiv',medrxiv:'medRxiv',pdf:'PDF'}[s]||s;
+}
+
+// ── BUILD FILENAME (matches how scrapers save files) ───────
+function buildFilename(a) {
+  const id = a.source_external_id || '';
+  if (a.source === 'pmc') return id + '.json';  // id is already PMC13193533
+  if (a.source === 'pubmed') return 'pubmed_' + id + '.json';
+  if (a.source === 'biorxiv' || a.source === 'medrxiv') {
+    // DOI: 10.1101/2025.07.24.666669 → biorxiv_10_1101_2025_07_24_666669.json
+    const safe = id.replace(/[\/\.]/g, '_');
+    return a.source + '_' + safe + '.json';
+  }
+  if (a.source === 'pdf') return id + '.json';  // id is already safe_name e.g. 843_pdf
+  return id + '.json';
+}
+
+// ── DOWNLOAD FULL JSON FROM SERVER DISK ───────────────────
+async function dlFullJSON(a) {
+  const filename = buildFilename(a);
+  try {
+    const resp = await fetch(`${API}/article/${encodeURIComponent(filename)}`);
+    if (!resp.ok) throw new Error('Not found on server — try scraping first.');
+    const data = await resp.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const lnk = document.createElement('a');
+    lnk.href = url; lnk.download = filename; lnk.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('JSON download error: ' + e.message); }
+}
+
+// ── OPEN PDF ON SOURCE SITE ────────────────────────────────
+function openPDF(a) {
+  if (a.doi) window.open('https://doi.org/' + a.doi, '_blank');
+  else if (a.source === 'pmc' && a.source_external_id)
+    window.open('https://pmc.ncbi.nlm.nih.gov/articles/' + a.source_external_id + '/pdf/', '_blank');
+  else alert('No DOI available — use Open Paper button to find PDF on the journal site.');
+}
+
+// ── RENDER A SINGLE PAPER CARD ─────────────────────────────
+function renderCard(a) {
+  const hasFullText = a.has_full_text;
+  const doi = a.doi || '';
+  const id  = a.source_external_id || '';
+
+  // Source-specific buttons
+  let srcBtns = '';
+  if (a.source === 'pmc' && id)
+    srcBtns += `<a class="btn btn-pmc" href="https://pmc.ncbi.nlm.nih.gov/articles/${id}/" target="_blank">📖 PMC</a>`;
+  if (a.source === 'pubmed' && id)
+    srcBtns += `<a class="btn btn-pubmed" href="https://pubmed.ncbi.nlm.nih.gov/${id}/" target="_blank">📖 PubMed</a>`;
+  if (a.source === 'biorxiv' && doi)
+    srcBtns += `<a class="btn btn-biorxiv" href="https://www.biorxiv.org/content/${doi}" target="_blank">📖 bioRxiv</a>`;
+  if (a.source === 'medrxiv' && doi)
+    srcBtns += `<a class="btn btn-medrxiv" href="https://www.medrxiv.org/content/${doi}" target="_blank">📖 medRxiv</a>`;
+
+  // Journal / DOI button
+  const journalBtn = doi
+    ? `<a class="btn btn-journal" href="https://doi.org/${doi}" target="_blank">🌐 Journal Site</a>`
+    : '';
+
+  const aJSON = JSON.stringify(a);
+
+  return `<div class="paper-card">
+    <div class="card-top">
+      <span class="source-badge ${srcClass(a.source)}">${srcLabel(a.source)}</span>
+      ${hasFullText
+        ? '<span class="fulltext-badge">✓ Full Text</span>'
+        : '<span class="abstract-badge">Abstract Only</span>'}
+    </div>
+    <div class="paper-title">
+      ${doi ? `<a href="https://doi.org/${doi}" target="_blank">${a.title||'Untitled'}</a>` : (a.title||'Untitled')}
+    </div>
+    <div class="paper-authors">${(a.authors||[]).slice(0,3).join(', ')}${(a.authors||[]).length>3?' et al.':''}</div>
+    <div class="paper-journal">${a.publication_date||''} ${doi?'· DOI: '+doi:''}</div>
+    ${a.abstract ? `<div class="paper-abstract" id="abs-${id.replace(/\W/g,'')}">${a.abstract}</div>` : ''}
+    <div class="paper-stats">
+      <span class="stat-chip ${a.word_count>2000?'green':''}">${(a.word_count||0).toLocaleString()} words</span>
+      <span class="stat-chip blue">${a.section_count||0} sections</span>
+      ${hasFullText?'<span class="stat-chip green">✓ Full text saved</span>':'<span class="stat-chip yellow">Abstract only</span>'}
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-details" onclick='openModal(${aJSON})'>🔍 View Details</button>
+      <span class="divider"></span>
+      ${srcBtns}
+      ${journalBtn}
+      <span class="divider"></span>
+      <button class="btn btn-json" onclick='dlFullJSON(${aJSON})'>⬇ Full JSON</button>
+      <button class="btn btn-pdf-dl" onclick='openPDF(${aJSON})'>📥 Get PDF</button>
+    </div>
+  </div>`;
+}
+
+// ── RENDER RESULTS LIST ────────────────────────────────────
+function renderResults(articles, containerId, statusId) {
+  const c = document.getElementById(containerId);
+  if (!articles.length) {
+    c.innerHTML = `<div class="empty"><div class="empty-icon">🔬</div><p>No articles found.</p></div>`;
+    return;
+  }
+  const totalW = articles.reduce((s,a)=>s+(a.word_count||0),0);
+  const withFull = articles.filter(a=>a.has_full_text).length;
+
+  // Update header stats
+  document.getElementById('hstat-total').textContent = articles.length;
+  document.getElementById('hstat-words').textContent = totalW>1000?Math.round(totalW/1000)+'k':totalW;
+
+  const meta = `<div class="results-meta">
+    <div class="rm"><div class="n">${articles.length}</div><div class="l">Articles</div></div>
+    <div class="rm"><div class="n">${totalW.toLocaleString()}</div><div class="l">Total Words</div></div>
+    <div class="rm"><div class="n">${withFull}</div><div class="l">Full Text</div></div>
+    <div class="rm"><div class="n">${Math.round(totalW/Math.max(articles.length,1)).toLocaleString()}</div><div class="l">Avg Words</div></div>
+  </div>`;
+
+  c.innerHTML = meta + `<div class="papers-list">${articles.map(renderCard).join('')}</div>`;
+}
+
+// ── SEARCH ─────────────────────────────────────────────────
+async function doSearch() {
+  const query = document.getElementById('q').value.trim();
+  const source = document.getElementById('src-select').value;
+  const max = parseInt(document.getElementById('max-n').value)||3;
+  if (!query) { setStatus('search-status','Please enter a search query.','error'); return; }
+
+  // Switch to search tab
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.nav-tab').classList.add('active');
+  document.getElementById('tab-search').classList.add('active');
+
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true;
+  document.getElementById('search-results').innerHTML = '';
+  setStatus('search-status',
+    `<span class="spinner"></span>Scraping <b>${source.toUpperCase()}</b> for "<b>${query}</b>"… ${source==='biorxiv'||source==='medrxiv'||source==='all'?'Browser-based sources take 30-60s.':''}`,
+    'info');
+
+  try {
+    const resp = await fetch(`${API}/search`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({query, source, max_results:max})
+    });
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.detail||resp.statusText); }
+    const data = await resp.json();
+    setStatus('search-status',
+      `✓ Found <b>${data.total}</b> articles from <b>${data.source.toUpperCase()}</b> for "<b>${data.query}</b>". Full JSON files saved to server. Click <b>⬇ Full JSON</b> to download complete data.`,
+      'success');
+    renderResults(data.articles, 'search-results', 'search-status');
+  } catch(e) {
+    setStatus('search-status','Error: '+e.message,'error');
+  } finally { btn.disabled=false; }
+}
+
+// Enter key triggers search
+document.getElementById('q').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
+
+// ── PDF UPLOAD ─────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.pdf')) uploadPDF(file);
+  else alert('Please drop a PDF file.');
+}
+
+async function uploadPDF(file) {
+  if (!file) return;
+  setStatus('pdf-status',
+    `<span class="spinner"></span>Processing "<b>${file.name}</b>"… OCR runs automatically on scanned pages.`,
+    'info');
+  document.getElementById('pdf-result').innerHTML = '';
+
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const resp = await fetch(`${API}/pdf`, {method:'POST', body:form});
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.detail||resp.statusText); }
+    const d = await resp.json();
+    setStatus('pdf-status',
+      `✓ "<b>${d.filename}</b>" processed successfully${d.ocr_used?' — <b>OCR was used</b> (scanned PDF detected)':' — digital PDF'}. Full text extracted and saved.`,
+      'success');
+
+    const a = {
+      title: d.title||file.name,
+      authors: d.authors||[],
+      doi: d.doi,
+      source: 'pdf',
+      source_external_id: d.source_external_id || d.filename.replace('.pdf',''),
+      word_count: d.word_count,
+      section_count: d.section_count,
+      has_full_text: true,
+      has_abstract: !!d.abstract,
+      abstract: d.abstract,
+      publication_date: '',
+    };
+
+    document.getElementById('pdf-result').innerHTML = `
+      <div style="margin-top:8px">
+        ${renderCard(a)}
+        <div style="margin-top:8px;padding:10px 14px;background:#1e293b;border-radius:8px;font-size:12px;color:#475569">
+          📁 Saved on server: <code style="color:#60a5fa">backend/ai/ingestion/output/pdf/${d.filename}.json</code>
+          &nbsp;|&nbsp; Chunks: <b style="color:#4ade80">${d.chunk_count}</b> RAG-ready chunks
+          ${d.ocr_used?'&nbsp;|&nbsp; <b style="color:#fbbf24">OCR was used on scanned pages</b>':''}
+        </div>
+      </div>`;
+  } catch(e) { setStatus('pdf-status','Error: '+e.message,'error'); }
+}
+
+// ── LOAD SAVED PAPERS ──────────────────────────────────────
+async function loadSaved() {
+  const src = document.getElementById('filter-src').value;
+  setStatus('saved-status','<span class="spinner"></span>Loading saved papers from server…','info');
+  document.getElementById('saved-results').innerHTML = '';
+  try {
+    const resp = await fetch(`${API}/results${src?'?source='+src:''}`);
+    if (!resp.ok) throw new Error(resp.statusText);
+    const data = await resp.json();
+    setStatus('saved-status',`Found <b>${data.total}</b> papers saved on server disk.`,'success');
+    renderResults(data.articles,'saved-results','saved-status');
+  } catch(e) { setStatus('saved-status','Error: '+e.message,'error'); }
+}
+
+// ── MODAL ──────────────────────────────────────────────────
+function openModal(a) {
+  document.getElementById('m-title').textContent = a.title||'Untitled';
+  document.getElementById('m-authors').textContent = (a.authors||[]).join(', ')||'N/A';
+  document.getElementById('m-journal').textContent = [a.publication_date, a.journal].filter(Boolean).join(' · ')||'N/A';
+  document.getElementById('m-doi').innerHTML = a.doi
+    ? `<a href="https://doi.org/${a.doi}" target="_blank" style="color:#60a5fa">${a.doi}</a>`
+    : 'N/A';
+  document.getElementById('m-source').textContent = srcLabel(a.source) + (a.has_full_text?' · Full text':' · Abstract only');
+  document.getElementById('m-stats').textContent = `${(a.word_count||0).toLocaleString()} words · ${a.section_count||0} sections`;
+  document.getElementById('m-keywords').textContent = (a.keywords||[]).join(', ')||'N/A';
+  document.getElementById('m-abstract').textContent = a.abstract||'No abstract available. Download Full JSON for complete data.';
+
+  const act = document.getElementById('m-actions');
+  act.innerHTML = '';
+
+  const addBtn = (cls, text, fn) => {
+    const b = document.createElement('button');
+    b.className = 'btn ' + cls; b.innerHTML = text;
+    b.onclick = fn; act.appendChild(b);
+  };
+
+  if (a.source==='pmc' && a.source_external_id)
+    addBtn('btn-pmc','📖 Open in PMC',()=>window.open('https://pmc.ncbi.nlm.nih.gov/articles/'+a.source_external_id+'/','_blank'));
+  if (a.source==='pubmed' && a.source_external_id)
+    addBtn('btn-pubmed','📖 Open in PubMed',()=>window.open('https://pubmed.ncbi.nlm.nih.gov/'+a.source_external_id+'/','_blank'));
+  if (a.source==='biorxiv' && a.doi)
+    addBtn('btn-biorxiv','📖 Open bioRxiv',()=>window.open('https://www.biorxiv.org/content/'+a.doi,'_blank'));
+  if (a.source==='medrxiv' && a.doi)
+    addBtn('btn-medrxiv','📖 Open medRxiv',()=>window.open('https://www.medrxiv.org/content/'+a.doi,'_blank'));
+  if (a.doi)
+    addBtn('btn-journal','🌐 Journal Site',()=>window.open('https://doi.org/'+a.doi,'_blank'));
+  addBtn('btn-json','⬇ Full JSON (with full text)',()=>dlFullJSON(a));
+  addBtn('btn-pdf-dl','📥 Get PDF',()=>openPDF(a));
+
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+// ── INIT: load header stats ────────────────────────────────
+(async () => {
+  try {
+    const r = await fetch(`${API}/results`);
+    const d = await r.json();
+    document.getElementById('hstat-total').textContent = d.total;
+    const tw = (d.articles||[]).reduce((s,a)=>s+(a.word_count||0),0);
+    document.getElementById('hstat-words').textContent = tw>1000?Math.round(tw/1000)+'k':tw;
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

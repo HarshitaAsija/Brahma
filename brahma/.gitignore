@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Scraped output data - never commit JSONs
+ai/ingestion/output/
+data/
+
+# OS
+.DS_Store

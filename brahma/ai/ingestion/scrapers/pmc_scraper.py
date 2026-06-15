@@ -1,203 +1,208 @@
-import time
-import random
+# NCBI E-utilities based PMC scraper — no browser, no CAPTCHA
+# Get free API key: https://www.ncbi.nlm.nih.gov/account/
+# Without key: 3 req/sec | With key: 10 req/sec
+NCBI_API_KEY = None
+
+import asyncio
+import httpx
+import xml.etree.ElementTree as ET
 import re
 from typing import Optional
 from datetime import datetime
-from playwright.sync_api import sync_playwright
-from scrapling.parser import Selector
-from ai.ingestion.scrapers.base import RawArticle, SCRAPER_VERSION
+from ai.ingestion.scrapers.base import SCRAPER_VERSION
 
-CHROMIUM_PATH = "/snap/bin/chromium"
+BASE_SEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+BASE_FETCH  = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
-def _polite_sleep():
-    time.sleep(random.uniform(3.0, 6.0))
+def _clean(text: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
-def _get_page_html(url: str) -> Optional[str]:
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            executable_path=CHROMIUM_PATH,
-            headless=False,
-            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"]
-        )
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-            viewport={"width": 1920, "height": 1080},
-            locale="en-US",
-        )
-        context.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
-        page = context.new_page()
+def _itertext(el) -> str:
+    return "".join(el.itertext()).strip() if el is not None else ""
+
+async def _get_pmc_ids(query: str, max_results: int, client: httpx.AsyncClient) -> list:
+    params = {
+        "db": "pmc", "term": query,
+        "retmax": max_results, "retmode": "json",
+        "usehistory": "y",
+        "sort": "relevance",
+        "field": "title/abstract",
+    }
+    if NCBI_API_KEY:
+        params["api_key"] = NCBI_API_KEY
+    try:
+        resp = await client.get(BASE_SEARCH, params=params)
+        resp.raise_for_status()
+        ids = resp.json()["esearchresult"]["idlist"]
+        print(f"  [PMC] Found {len(ids)} articles for: {query}")
+        return ids
+    except Exception as e:
+        print(f"  [PMC] Search error: {e}")
+        return []
+
+async def _fetch_batch(pmcids: list, client: httpx.AsyncClient) -> list:
+    params = {
+        "db": "pmc", "id": ",".join(pmcids),
+        "retmode": "xml",
+    }
+    if NCBI_API_KEY:
+        params["api_key"] = NCBI_API_KEY
+
+    for attempt in range(3):
         try:
-            page.goto(url, wait_until="networkidle", timeout=30000)
-            time.sleep(random.uniform(2.0, 3.0))
-            html = page.content()
-            return html
+            resp = await client.get(BASE_FETCH, params=params)
+            resp.raise_for_status()
+            break
         except Exception as e:
-            print(f"[ERROR] Failed to load {url}: {e}")
-            return None
-        finally:
-            browser.close()
+            if attempt == 2:
+                print(f"  [PMC] Batch fetch failed: {e}")
+                return []
+            await asyncio.sleep(2 ** attempt)
 
-def _is_captcha(html: str) -> bool:
-    title = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE)
-    if title:
-        t = title.group(1).lower()
-        return "recaptcha" in t or "checking your browser" in t
-    return False
+    root = ET.fromstring(resp.text)
+    papers = []
 
-def _extract_sections(html: str) -> dict:
-    """Extract structured sections from PMC article body."""
-    sections = {}
-    body_idx = html.find("body main-article-body")
-    if body_idx == -1:
-        return sections
+    for article in root.findall(".//article"):
+        try:
+            # Title
+            title_el = article.find(".//title-group/article-title")
+            title = _itertext(title_el)
 
-    tag_start = html.rfind("<", 0, body_idx)
-    body_html = html[tag_start:]
-    last_close = body_html.rfind("</section>")
-    if last_close == -1:
-        return sections
-    body_content = body_html[:last_close]
+            # Abstract
+            abstract_els = article.findall(".//abstract//p")
+            abstract = " ".join(_itertext(el) for el in abstract_els).strip()
 
-    # Find all h2 section headings and their content
-    section_pattern = re.findall(
-        r"<h2[^>]*>(.*?)</h2>(.*?)(?=<h2|$)",
-        body_content, re.DOTALL | re.IGNORECASE
-    )
-    for heading, content in section_pattern:
-        heading_clean = re.sub(r"<[^>]+>", "", heading).strip()
-        content_clean = re.sub(r"<[^>]+>", " ", content)
-        content_clean = re.sub(r"\s+", " ", content_clean).strip()
-        if heading_clean and content_clean:
-            sections[heading_clean] = content_clean
+            # Full text body — all paragraphs
+            body_els = article.findall(".//body//p")
+            body = " ".join(_itertext(el) for el in body_els).strip()
+            full_text = body if body else abstract
 
-    return sections
+            # Structured sections
+            sections = {}
+            for sec in article.findall(".//body//sec"):
+                heading_el = sec.find("title")
+                heading = _itertext(heading_el) if heading_el is not None else ""
+                paras = sec.findall("p")
+                content = " ".join(_itertext(p) for p in paras).strip()
+                if heading and content:
+                    sections[heading] = content
 
-def _extract_full_text(html: str) -> Optional[str]:
-    body_idx = html.find("body main-article-body")
-    if body_idx == -1:
-        return None
-    tag_start = html.rfind("<", 0, body_idx)
-    body_html = html[tag_start:]
-    last_close = body_html.rfind("</section>")
-    if last_close == -1:
-        return None
-    body_content = body_html[:last_close]
-    full_text = re.sub(r"<[^>]+>", " ", body_content)
-    full_text = re.sub(r"\s+", " ", full_text).strip()
-    return full_text
+            # Authors
+            authors = []
+            for contrib in article.findall(".//contrib[@contrib-type='author']"):
+                last  = contrib.findtext(".//surname", "")
+                first = contrib.findtext(".//given-names", "")
+                name  = f"{first} {last}".strip()
+                if name:
+                    authors.append(name)
 
-def _parse_pmc_html(html: str, pmc_id: str, url: str) -> Optional[RawArticle]:
-    # Title
-    title = None
-    title_meta = re.search(r'<meta name="citation_title" content="([^"]+)"', html)
-    if title_meta:
-        title = title_meta.group(1).strip()
-    else:
-        doc = Selector(html)
-        for h in doc.find_all("h1"):
-            t = h.text.strip()
-            if t:
-                title = t
-                break
+            # Journal
+            journal = article.findtext(".//journal-title", "")
 
-    # Abstract
-    abstract = None
-    ab_match = re.search(r'id=["\']abstract\d+["\'].*?<p>(.*?)</p>', html, re.DOTALL)
-    if ab_match:
-        abstract = re.sub(r"<[^>]+>", "", ab_match.group(1)).strip()
+            # DOI
+            doi = ""
+            for id_el in article.findall(".//article-id"):
+                if id_el.get("pub-id-type") == "doi":
+                    doi = id_el.text or ""
 
-    # DOI
-    doi = None
-    doi_meta = re.search(r'<meta name="citation_doi" content="([^"]+)"', html)
-    if doi_meta:
-        doi = doi_meta.group(1).strip()
+            # PMC ID
+            pmcid = ""
+            for id_el in article.findall(".//article-id"):
+                if id_el.get("pub-id-type") == "pmcid":
+                    pmcid = id_el.text or ""
+                    break
 
-    # Authors
-    authors = re.findall(r'<meta name="citation_author" content="([^"]+)"', html)
+            # PMID
+            pmid = ""
+            for id_el in article.findall(".//article-id"):
+                if id_el.get("pub-id-type") == "pmid":
+                    pmid = id_el.text or ""
 
-    # Journal
-    journal = None
-    journal_meta = re.search(r'<meta name="citation_journal_title" content="([^"]+)"', html)
-    if journal_meta:
-        journal = journal_meta.group(1).strip()
+            # Publication date
+            pub_date = ""
+            for pd in article.findall(".//pub-date"):
+                year  = pd.findtext("year", "")
+                month = pd.findtext("month", "")
+                if year:
+                    pub_date = f"{year}-{month}".strip("-")
+                    break
 
-    # Publication date
-    pub_date = None
-    date_meta = re.search(r'<meta name="citation_date" content="([^"]+)"', html)
-    if date_meta:
-        pub_date = date_meta.group(1).strip()
+            # Keywords
+            keywords = [
+                _itertext(kw)
+                for kw in article.findall(".//kwd")
+                if _itertext(kw)
+            ]
 
-    # Keywords — author provided
-    keywords = re.findall(r'<meta name="citation_keywords" content="([^"]+)"', html)
-    if not keywords:
-        kw_matches = re.findall(r'class=["\']kwd-text["\'][^>]*>(.*?)</', html)
-        keywords = [re.sub(r"<[^>]+>", "", kw).strip() for kw in kw_matches if kw.strip()]
+            # MeSH terms
+            mesh_terms = [
+                _itertext(m)
+                for m in article.findall(".//mesh-heading//descriptor-name")
+                if _itertext(m)
+            ]
 
-    # MeSH terms
-    mesh_terms = re.findall(r'<a[^>]*mesh[^>]*>([^<]+)</a>', html, re.IGNORECASE)
+            # Article type
+            article_type = article.get("article-type", "research-article")
 
-    # Article type
-    article_type = None
-    atype = re.search(r'<meta name="citation_article_type" content="([^"]+)"', html)
-    if atype:
-        article_type = atype.group(1).strip()
+            # Language
+            language = article.get("xml:lang", "en")
 
-    # Language
-    language = "en"
-    lang = re.search(r'<meta name="citation_language" content="([^"]+)"', html)
-    if lang:
-        language = lang.group(1).strip()
+            word_count = len(full_text.split()) if full_text else 0
+            url = f"https://pmc.ncbi.nlm.nih.gov/articles/PMC{pmcid}/" if pmcid else ""
 
-    # Structured sections
-    sections = _extract_sections(html)
+            print(f"    ✓ {title[:70]}")
 
-    # Full text
-    full_text = _extract_full_text(html)
+            papers.append({
+                "doi":              doi,
+                "pmid":             pmid,
+                "title":            title,
+                "abstract":         abstract,
+                "full_text":        full_text,
+                "sections":         sections,
+                "authors":          authors,
+                "journal":          journal,
+                "publication_date": pub_date,
+                "article_type":     article_type,
+                "language":         language,
+                "keywords":         keywords,
+                "mesh_terms":       mesh_terms,
+                "open_access":      True,
+                "retracted":        False,
+                "retraction_reason": None,
+                "source":           "pmc",
+                "source_external_id": pmcid,
+                "source_url":       url,
+                "word_count":       word_count,
+                "fetch_timestamp":  datetime.utcnow().isoformat(),
+                "scraper_version":  SCRAPER_VERSION,
+            })
 
-    print(f"[PARSED] title={bool(title)} abstract={bool(abstract)} authors={len(authors)} journal={journal} sections={list(sections.keys())[:4]} words={len(full_text.split()) if full_text else 0}")
+        except Exception as e:
+            print(f"  [PMC] Parse error: {e}")
 
-    return RawArticle(
-        source="pmc",
-        source_url=url,
-        source_external_id=pmc_id,
-        doi=doi,
-        pmid=None,
-        title=title,
-        abstract=abstract,
-        full_text=full_text,
-        sections=sections,
-        authors=authors,
-        journal=journal,
-        publication_date=pub_date,
-        article_type=article_type,
-        language=language,
-        keywords=keywords,
-        mesh_terms=mesh_terms,
-        open_access=True,
-        retracted=False,
-        retraction_reason=None,
-        fetch_timestamp=datetime.utcnow().isoformat(),
-        scraper_version=SCRAPER_VERSION,
-        raw_html=html,
-    )
+    return papers
 
-def scrape_pmc_article(pmc_id: str) -> Optional[RawArticle]:
-    url = f"https://pmc.ncbi.nlm.nih.gov/articles/{pmc_id}/"
-    print(f"[INFO] Fetching {url}")
-    html = _get_page_html(url)
-    if not html:
-        return None
-    if _is_captcha(html):
-        print("[WARN] Got CAPTCHA - skipping")
-        return None
-    article = _parse_pmc_html(html, pmc_id, url)
-    _polite_sleep()
-    return article
+async def run_pmc(query: str, max_results: int = 10) -> list:
+    print(f"\n[PMC] Query: {query}")
+    delay = 0.1 if NCBI_API_KEY else 0.35
 
-def parse_from_file(filepath: str, pmc_id: str) -> Optional[RawArticle]:
-    with open(filepath, "r") as f:
-        html = f.read()
-    url = f"https://pmc.ncbi.nlm.nih.gov/articles/{pmc_id}/"
-    return _parse_pmc_html(html, pmc_id, url)
+    async with httpx.AsyncClient(timeout=30) as client:
+        ids = await _get_pmc_ids(query, max_results, client)
+        if not ids:
+            return []
+
+        all_papers = []
+        batch_size = 20
+        total_batches = (len(ids) + batch_size - 1) // batch_size
+
+        for i in range(0, len(ids), batch_size):
+            batch = ids[i: i + batch_size]
+            batch_num = i // batch_size + 1
+            print(f"  [PMC] Fetching batch {batch_num}/{total_batches} ({len(batch)} papers)...")
+            papers = await _fetch_batch(batch, client)
+            all_papers.extend(papers)
+            await asyncio.sleep(delay)
+
+    print(f"  [PMC] Done. {len(all_papers)} papers fetched.")
+    return all_papers

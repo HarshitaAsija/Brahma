@@ -80,7 +80,7 @@ def _extract_metadata(text: str, doc) -> dict:
 
     return title, authors, doi, abstract
 
-def scrape_pdf(pdf_path: str, output_dir: str = "ai/ingestion/output/pdf") -> Optional[dict]:
+def scrape_pdf(pdf_path: str, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf") -> Optional[dict]:
     """
     F5 - PDF batch import.
     Extracts text and metadata from a PDF file using PyMuPDF.
@@ -124,6 +124,9 @@ def scrape_pdf(pdf_path: str, output_dir: str = "ai/ingestion/output/pdf") -> Op
     fname = re.sub(r"[^a-z0-9]", "_", os.path.basename(pdf_path).lower()) + ".json"
     out_path = os.path.join(output_dir, fname)
 
+    from ai.ingestion.scrapers.base import build_chunks
+    chunks = build_chunks(sections, abstract=abstract or "", title=title or "")
+
     result = {
         "doi": doi,
         "pmid": None,
@@ -131,6 +134,7 @@ def scrape_pdf(pdf_path: str, output_dir: str = "ai/ingestion/output/pdf") -> Op
         "abstract": abstract,
         "full_text": clean_text,
         "sections": sections,
+        "chunks": chunks,
         "authors": authors,
         "journal": None,
         "publication_date": None,
@@ -142,8 +146,11 @@ def scrape_pdf(pdf_path: str, output_dir: str = "ai/ingestion/output/pdf") -> Op
         "retracted": False,
         "retraction_reason": None,
         "source": "pdf",
-        "source_external_id": doi or os.path.basename(pdf_path),
+        "source_external_id": fname.replace(".json", ""),
         "source_url": f"file://{os.path.abspath(pdf_path)}",
+        "ocr_used": False,
+        "word_count": len(clean_text.split()) if clean_text else 0,
+        "chunk_count": len(chunks),
         "fetch_timestamp": datetime.utcnow().isoformat(),
         "scraper_version": SCRAPER_VERSION,
     }
@@ -155,7 +162,7 @@ def scrape_pdf(pdf_path: str, output_dir: str = "ai/ingestion/output/pdf") -> Op
     print(f"[PARSED] title={bool(title)} abstract={bool(abstract)} doi={doi} sections={list(sections.keys())[:4]}")
     return result
 
-def batch_scrape_pdfs(pdf_folder: str, output_dir: str = "ai/ingestion/output/pdf") -> list:
+def batch_scrape_pdfs(pdf_folder: str, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf") -> list:
     """
     Scrape all PDFs in a folder.
     Use this to bulk import a folder of downloaded papers.
