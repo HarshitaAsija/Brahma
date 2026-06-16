@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-
+import React, { useEffect, useState } from "react";
+import { fetchPapers, extractEntities, fetchPaperEntities } from "../lib/api";
 const COLORS = {
   bg: "#0d0f14",
   bgSurface: "#13161d",
@@ -306,63 +306,73 @@ function Dashboard() {
 
 function LiteratureExplorer() {
   const [selectedPaper, setSelectedPaper] = useState(0);
+  const [papers, setPapers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [entities, setEntities] = useState<any[]>([]);
+  const [extracting, setExtracting] = useState(false);
 
-  const papers = [
-    {
-      id: 0,
-      title: "Evolocumab and Clinical Outcomes in Patients with Cardiovascular Disease and Statin Intolerance",
-      authors: "Sabatine MS, Giugliano RP, Keech AC et al.",
-      journal: "New England Journal of Medicine", year: 2024, volume: "390(8):712-724",
-      score: 97, type: "RCT", phase: "Phase III",
-      abstract: "Background: PCSK9 inhibitors reduce LDL cholesterol in patients with familial hypercholesterolemia but long-term cardiovascular outcomes in statin-intolerant patients remain unclear. Methods: In this double-blind trial, 27,564 patients were randomized to evolocumab or placebo. Primary endpoint was cardiovascular death, MI, or stroke at 5 years. Results: Evolocumab reduced LDL-C by 59% (95% CI 57–61%). The primary endpoint occurred in 9.8% evolocumab vs 11.3% placebo (HR 0.85, 95% CI 0.79–0.92, p<0.001). All-cause mortality was non-significantly reduced (HR 0.91, 95% CI 0.82–1.01).",
-      entities: ["PCSK9", "Evolocumab", "LDL-C", "MACE", "Cardiovascular Disease", "Familial Hypercholesterolemia"],
-      stats: { hr: "0.85", ci: "0.79–0.92", p: "<0.001", n: "27,564", nnt: "67", followup: "5 years" },
-      evidence: "high", citations: 342,
-      aiInsight: "Strong RCT evidence supporting PCSK9 inhibition in statin-intolerant patients. Consider in hypothesis: PCSK9 × ASCVD risk stratification in FH populations.",
-    },
-    {
-      id: 1,
-      title: "Phosphorylated Tau-217 as a Predictive Biomarker for Alzheimer's Disease Conversion: A 10-Year Longitudinal Cohort",
-      authors: "Hansson O, Palmqvist S, Janelidze S et al.",
-      journal: "Nature Neuroscience", year: 2024, volume: "27(3):411-423",
-      score: 94, type: "Cohort", phase: "Observational",
-      abstract: "Plasma p-tau217 demonstrated superior discrimination for amyloid-positive MCI conversion to AD dementia compared to p-tau181 and NfL. In 2,847 participants from BioFINDER-2, AUC 0.94 (95% CI 0.92–0.96) at 24-month prediction. Key finding: p-tau217 elevation precedes amyloid PET positivity by a median 3.2 years, opening a critical therapeutic window.",
-      entities: ["p-tau217", "Alzheimer's Disease", "Amyloid-β", "BioFINDER-2", "MCI", "NfL", "p-tau181"],
-      stats: { auc: "0.94", ci: "0.92–0.96", n: "2,847", sensitivity: "91%", specificity: "89%", lead: "3.2 yrs" },
-      evidence: "high", citations: 218,
-      aiInsight: "p-tau217 outperforms current biomarkers. Potential research gap: combined p-tau217 + GFAP prediction model in non-amnestic MCI variants.",
-    },
-    {
-      id: 2,
-      title: "Tirzepatide vs Semaglutide in Obesity with Metabolic Syndrome: SURPASS-STEP Head-to-Head RCT",
-      authors: "Rosenstock J, Frías JP, Jastreboff AM et al.",
-      journal: "Lancet", year: 2024, volume: "403(10430):1175-1188",
-      score: 92, type: "RCT", phase: "Phase III",
-      abstract: "Tirzepatide (15mg/wk) produced significantly greater weight loss than semaglutide (2.4mg/wk) at 72 weeks (-22.4% vs -15.1% body weight, p<0.001). Metabolic improvements were concordant: HbA1c reduction -2.1% vs -1.7%, HOMA-IR reduction 48% vs 31%. Adverse event profiles were similar; GI events slightly higher with tirzepatide (38% vs 33%).",
-      entities: ["Tirzepatide", "Semaglutide", "GLP-1", "GIP", "Obesity", "Metabolic Syndrome", "HbA1c"],
-      stats: { weightLoss: "-22.4% vs -15.1%", p: "<0.001", n: "5,308", hba1c: "-2.1% vs -1.7%", duration: "72 weeks" },
-      evidence: "high", citations: 156,
-      aiInsight: "Dual GIP/GLP-1 agonism confers superior metabolic control. Research gap: tirzepatide in CKD stage 3b–4, data extrapolation from SURPASS-KIDNEY needed.",
-    },
-    {
-      id: 3,
-      title: "CAR-T Cell Therapy for Relapsed/Refractory Multiple Myeloma: Real-World Outcomes Registry",
-      authors: "Munshi NC, Anderson LD Jr, Shah N et al.",
-      journal: "Journal of Clinical Oncology", year: 2024, volume: "42(4):398-411",
-      score: 88, type: "Registry", phase: "Real-world",
-      abstract: "Multi-center registry of 1,244 patients receiving BCMA-directed CAR-T (ide-cel or cilta-cel). ORR 78% (cilta-cel: 84% vs ide-cel: 73%). Median PFS 12.4 months (cilta-cel: 15.2 vs ide-cel: 10.6). CRS occurred in 84%; grade ≥3 in 9%. Neurotoxicity (ICANS) in 19%. Key predictor of response: baseline serum M-protein <2g/dL (OR 2.8, 95% CI 2.1–3.7).",
-      entities: ["CAR-T", "BCMA", "Ide-cel", "Cilta-cel", "Multiple Myeloma", "CRS", "ICANS"],
-      stats: { orr: "78%", pfs: "12.4 months", crs: "84%", n: "1,244", predictor: "M-protein <2g/dL" },
-      evidence: "moderate", citations: 89,
-      aiInsight: "Real-world efficacy lower than pivotal trials (KarMMa-3). Hypothesis: early CAR-T in 3rd-line vs late-line may shift PFS significantly.",
-    },
-  ];
+  useEffect(() => {
+    async function loadPapers() {
+      try {
+        const data = await fetchPapers();
 
-  const paper = papers[selectedPaper];
+        const transformed = data.results.map((paper) => ({
+          id: paper.id,
+          title: paper.title,
+          authors: Array.isArray(paper.authors)
+            ? paper.authors.join(", ")
+            : String(paper.authors),
+          journal: paper.journal,
+          year: paper.publication_date
+            ? new Date(paper.publication_date).getFullYear()
+            : "",
+          volume: "",
+          score: 95,
+          type: "Research Paper",
+          phase: paper.source || "Database",
+          abstract: paper.abstract,
+          stats: {
+            doi: paper.doi || "N/A",
+            pmid: paper.pmid || "N/A",
+          },
+          evidence: "high",
+          citations: 0,
+          aiInsight: "Entity extraction pipeline is connected. Run extraction to view biomedical entities.",
+        }));
+
+        setPapers(transformed);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPapers();
+  }, []);
+
+  const paper = papers.length > 0 ? papers[selectedPaper] : null;
+
+  const loadEntities = async (paperId: number) => {
+    try {
+      const data = await fetchPaperEntities(paperId);
+      setEntities(data);
+    } catch (err) {
+      console.error(err);
+      setEntities([]);
+    }
+  };
+
+  useEffect(() => {
+    if (paper?.id) {
+      loadEntities(paper.id);
+    } else {
+      setEntities([]);
+    }
+  }, [paper?.id]);
 
   return (
     <div style={{ flex: 1, display: "grid", gridTemplateColumns: "220px 1fr 340px", overflow: "hidden" }}>
-
       {/* LEFT: Filters */}
       <div style={{ borderRight: `1px solid ${COLORS.border}`, overflow: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ background: COLORS.bgCard, borderRadius: 6, padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, border: `1px solid ${COLORS.border}` }}>
@@ -394,14 +404,17 @@ function LiteratureExplorer() {
       {/* CENTER: Paper Feed */}
       <div style={{ overflow: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <span style={{ fontSize: 12, color: COLORS.textMuted }}>4,817 results · sorted by relevance</span>
+          <span style={{ fontSize: 12, color: COLORS.textMuted }}>
+            {loading ? "Loading papers..." : `${papers.length} results from database`}
+          </span>
           <div style={{ display: "flex", gap: 6 }}>
             <Badge color="blue">Semantic search</Badge>
             <Badge color="gray">Export</Badge>
           </div>
         </div>
-        {papers.map((p, i) => (
-          <div key={i} onClick={() => setSelectedPaper(i)}
+
+        {!loading && papers.map((p, i) => (
+          <div key={p.id} onClick={() => setSelectedPaper(i)}
             style={{
               padding: "12px 14px", borderRadius: 8, cursor: "pointer",
               background: selectedPaper === i ? COLORS.bgElevated : COLORS.bgCard,
@@ -433,47 +446,99 @@ function LiteratureExplorer() {
 
       {/* RIGHT: Paper Inspector */}
       <div style={{ borderLeft: `1px solid ${COLORS.border}`, overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, lineHeight: 1.4, marginBottom: 6 }}>{paper.title}</div>
-          <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>{paper.authors}</div>
-          <div style={{ fontSize: 11, color: COLORS.textDim }}>{paper.journal} · {paper.year}</div>
-          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-            <Badge color="emerald">High evidence</Badge>
-            <Badge color="blue">{paper.type}</Badge>
-            <Badge color="gray">{paper.phase}</Badge>
+        {!paper ? (
+          <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+            {loading ? "Loading paper details..." : "No paper selected"}
           </div>
-        </div>
-
-        <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Abstract</div>
-          <p style={{ fontSize: 11.5, color: COLORS.textMuted, lineHeight: 1.6, margin: 0 }}>{paper.abstract}</p>
-        </div>
-
-        <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Key Statistics</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-            {Object.entries(paper.stats).map(([k, v]) => (
-              <div key={k} style={{ background: COLORS.bgElevated, borderRadius: 6, padding: "7px 10px", border: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 2, textTransform: "uppercase" }}>{k}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{v}</div>
+        ) : (
+          <>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, lineHeight: 1.4, marginBottom: 6 }}>{paper.title}</div>
+              <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>{paper.authors}</div>
+              <div style={{ fontSize: 11, color: COLORS.textDim }}>{paper.journal} · {paper.year}</div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                <Badge color="emerald">High evidence</Badge>
+                <Badge color="blue">{paper.type}</Badge>
+                <Badge color="gray">{paper.phase}</Badge>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Extracted Entities</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {paper.entities.map((e, i) => (
-              <Badge key={i} color={["blue","emerald","violet","amber","gray","blue","violet"][i % 7]}>{e}</Badge>
-            ))}
-          </div>
-        </div>
+            <button
+              onClick={async () => {
+                if (!paper?.id) return;
+                try {
+                  setExtracting(true);
+                  await extractEntities(paper.id);
+                  await loadEntities(paper.id);
+                } finally {
+                  setExtracting(false);
+                }
+              }}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: `1px solid ${COLORS.blue}`,
+                background: COLORS.bgElevated,
+                color: COLORS.blue,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              {extracting ? "Extracting..." : "Run Entity Extraction"}
+            </button>
 
-        <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12, background: COLORS.violetDim, borderRadius: 8, padding: 12, border: `1px solid rgba(139,92,246,0.2)` }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.violet, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>◈ AI Insight</div>
-          <p style={{ fontSize: 11.5, color: COLORS.violetLight, lineHeight: 1.6, margin: 0 }}>{paper.aiInsight}</p>
-        </div>
+            <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Abstract</div>
+              <p style={{ fontSize: 11.5, color: COLORS.textMuted, lineHeight: 1.6, margin: 0 }}>{paper.abstract}</p>
+            </div>
+
+            <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Key Statistics</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {Object.entries(paper.stats || {}).map(([k, v]) => (
+                  <div key={k} style={{ background: COLORS.bgElevated, borderRadius: 6, padding: "7px 10px", border: `1px solid ${COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 2, textTransform: "uppercase" }}>{k}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{String(v)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Extracted Entities</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {entities.length > 0 ? (
+                  entities.map((entity) => (
+                    <Badge
+                      key={entity.entity_id}
+                      color={
+                        entity.entity_type === "Gene"
+                          ? "blue"
+                          : entity.entity_type === "Disease"
+                          ? "emerald"
+                          : entity.entity_type === "Drug"
+                          ? "amber"
+                          : "violet"
+                      }
+                    >
+                      {entity.canonical_name}
+                    </Badge>
+                  ))
+                ) : (
+                  <span style={{ fontSize: 11, color: COLORS.textDim }}>
+                    No extracted entities yet
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 12, background: COLORS.violetDim, borderRadius: 8, padding: 12, border: `1px solid rgba(139,92,246,0.2)` }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.violet, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>◈ AI Insight</div>
+              <p style={{ fontSize: 11.5, color: COLORS.violetLight, lineHeight: 1.6, margin: 0 }}>{paper.aiInsight}</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
