@@ -206,3 +206,31 @@ async def run_pmc(query: str, max_results: int = 10) -> list:
 
     print(f"  [PMC] Done. {len(all_papers)} papers fetched.")
     return all_papers
+
+import json
+import os
+
+def search_and_scrape(query: str, max_results: int = 10,
+                      output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output") -> list:
+    """Synchronous entry point for PMC scraping — mirrors pubmed_scraper interface."""
+    import asyncio
+    os.makedirs(output_dir, exist_ok=True)
+    papers = asyncio.run(run_pmc(query, max_results))
+
+    results = []
+    for paper in papers:
+        if not paper.get("title"):
+            continue
+        pmcid = paper.get("source_external_id", "unknown")
+        safe_id = f"pmc_{pmcid}"
+        out_path = f"{output_dir}/{safe_id}.json"
+        if os.path.exists(out_path):
+            print(f"  [SKIP] {safe_id} already saved")
+            continue
+        with open(out_path, "w") as f:
+            json.dump(paper, f, indent=2, ensure_ascii=False)
+        print(f"  [SAVED] {safe_id}.json | {paper['title'][:50]} | {paper['word_count']} words")
+        results.append(paper)
+
+    print(f"  [PMC] Saved {len(results)} articles.")
+    return results
