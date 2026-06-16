@@ -1,111 +1,163 @@
-# Backend
+# Brahma – Local Setup Guide
 
-FastAPI-based Python backend for Brahma.
+## Prerequisites
 
-## Features
+- Docker Desktop (with WSL2 integration enabled)
+- Python 3.10+
+- Node.js 20+
 
-- FastAPI app with health check endpoint
-- Environment configuration using pydantic-settings
-- Logging setup
-- SQLAlchemy database configuration with PostgreSQL
-- Docker support
+---
 
-## Setup
+## Step 1: Start the Database (PostgreSQL via Docker)
 
-### Prerequisites
-
-- Python 3.8+
-- Docker (optional, for containerized deployment)
-- PostgreSQL (if not using Docker)
-
-### Local Development
-
-1. Clone the repository
-2. Navigate to the backend directory: `cd backend`
-3. Create a virtual environment: `python -m venv venv`
-4. Activate the virtual environment:
-   - On macOS/Linux: `source venv/bin/activate`
-   - On Windows: `venv\Scripts\activate`
-5. Install dependencies: `pip install -r requirements.txt`
-6. Create a `.env` file (copy from `.env.example` and adjust as needed):
-   ```bash
-   cp .env.example .env
-   ```
-7. Start the PostgreSQL database (if not running):
-   - Using Docker: `docker run --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=brahma -p 5432:5432 -d postgres`
-   - Or install PostgreSQL locally and create a database named `brahma`
-8. Run the database migrations (if any):
-   ```bash
-   alembic upgrade head
-   ```
-9. Start the development server:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-10. The API will be available at `http://localhost:8000`
-
-### Docker Deployment
-
-1. Build the Docker image:
-   ```bash
-   docker build -t brahma-backend .
-   ```
-2. Run the container:
-   ```bash
-   docker run -p 8000:8000 --name brahma-backend \
-     -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/brahma \
-     -e DEBUG=1 \
-     brahma-backend
-   ```
-   Note: For the database connection, you may need to adjust the host depending on your setup.
-   - If running PostgreSQL in another container, use the service name from your docker-compose.
-   - For host.docker.internal to work on Linux, you may need to add `--add-host=host.docker.internal:host-gateway` to the docker run command.
-
-### Testing the API
-
-Once the server is running, you can test the endpoints:
-
-- Health check: `GET http://localhost:8000/health`
-- Root endpoint: `GET http://localhost:8000/`
-
-You can also visit the interactive API documentation:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-### Environment Variables
-
-See `.env.example` for a list of available environment variables and their descriptions.
-
-## Project Structure
-
-```
-backend/
-├── app/
-│   ├── api/
-│   │   ├── routes/
-│   │   ├── dependencies/
-│   │   └── schemas/
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── logging.py
-│   │   └── utils.py
-│   ├── db/
-│   │   ├── __init__.py
-│   │   ├── base.py
-│   │   └── session.py
-│   ├── models/
-│   ├── crud/
-│   ├── services/
-│   ├── tests/
-│   └── main.py
-├── alembic/
-├── tests/
-├── Dockerfile
-├── requirements.txt
-├── pyproject.toml
-└── alembic.ini
+```bash
+cd ~/Brahma/brahma/backend
+docker compose up -d postgres
 ```
 
-## License
+Verify it's running:
 
-MIT
+```bash
+docker ps | grep central-db
+```
+
+---
+
+## Step 2: Start Neo4j
+
+```bash
+docker run -d \
+  --name neo4j \
+  -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/password \
+  neo4j:5
+```
+
+---
+
+## Step 3: Start Ollama (LLM)
+
+```bash
+docker run -d \
+  --name ollama \
+  -p 11434:11434 \
+  -v ollama:/root/.ollama \
+  ollama/ollama
+
+docker exec -it ollama ollama pull llama2
+```
+
+---
+
+## Step 4: Create the Backend `.env` File
+
+```bash
+cat > ~/Brahma/brahma/backend/.env <<'EOF'
+POSTGRES_SERVER=localhost
+POSTGRES_USER=central_admin
+POSTGRES_PASSWORD=centralDb13
+POSTGRES_DB=central_db
+POSTGRES_PORT=5432
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=password
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llama2
+BACKEND_CORS_ORIGINS=["http://localhost:3000"]
+SECRET_KEY=CHANGE_ME_TO_A_LONG_RANDOM_STRING
+DEBUG=True
+EOF
+```
+
+---
+
+## Step 5: Set Up Python Virtual Environment & Install Dependencies
+
+```bash
+cd ~/Brahma/brahma/backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install pgvector
+```
+
+---
+
+## Step 6: Run Database Migrations
+
+If running for the first time on a fresh database:
+
+```bash
+alembic upgrade head
+```
+
+If the database already has tables from a previous setup (to avoid `DuplicateObject` errors):
+
+```bash
+alembic stamp 20240611_01_initial_mvp
+alembic upgrade head
+```
+
+---
+
+## Step 7: Start the Backend
+
+```bash
+cd ~/Brahma/brahma/backend
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+Backend runs at: http://localhost:8000  
+Swagger docs at: http://localhost:8000/docs
+
+---
+
+## Step 8: Start the Frontend (new terminal)
+
+```bash
+cd ~/Brahma/brahma/frontend
+npm install
+npm run dev
+```
+
+Frontend runs at: http://localhost:3000
+
+---
+
+## Startup Order Summary
+
+| Order | Service    | Command                                      |
+|-------|------------|----------------------------------------------|
+| 1     | PostgreSQL | `docker compose up -d postgres`              |
+| 2     | Neo4j      | `docker run ... neo4j:5`                     |
+| 3     | Ollama     | `docker run ... ollama/ollama`               |
+| 4     | Backend    | `uvicorn app.main:app --reload`              |
+| 5     | Frontend   | `npm run dev`                                |
+
+---
+
+## Stopping Everything
+
+```bash
+# Stop backend and frontend with Ctrl+C in their terminals
+
+# Stop Docker containers
+cd ~/Brahma/brahma/backend
+docker compose down
+docker stop neo4j ollama
+docker rm neo4j ollama
+```
+
+---
+
+## Quick Verification Checklist
+
+| Service    | How to verify                                          |
+|------------|--------------------------------------------------------|
+| PostgreSQL | `docker ps \| grep central-db`                         |
+| Neo4j      | Open http://localhost:7474 → login: neo4j / password   |
+| Ollama     | `curl http://localhost:11434/api/tags`                 |
+| Backend    | `curl http://localhost:8000/health` → `{"status":"ok"}`|
+| Frontend   | Open http://localhost:3000                             |
