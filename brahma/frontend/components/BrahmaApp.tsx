@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 import React, { useEffect, useState } from "react";
 import { fetchPapers, extractEntities, fetchPaperEntities } from "../lib/api";

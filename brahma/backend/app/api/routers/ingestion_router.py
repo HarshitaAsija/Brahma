@@ -99,13 +99,25 @@ def _import_scraped_articles_to_db(articles: list[dict]) -> dict:
     try:
         for article in articles:
             try:
-                pub_date = article.get("publication_date") or "1970-01-01"
+                pub_date = article.get("publication_date") or article.get("pub_date") or article.get("date")
 
                 if isinstance(pub_date, str):
+                    month_map = {
+                             "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04",
+                             "May": "05", "Jun": "06", "Jul": "07", "Aug": "08",
+                             "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12",
+                    }
+
                     if len(pub_date) == 4:
-                        pub_date = f"{pub_date}-01-01"
-                    elif len(pub_date) == 7:
-                        pub_date = f"{pub_date}-01"
+                       pub_date = f"{pub_date}-01-01"
+
+                    elif len(pub_date) == 7 and pub_date[4] == "-":
+                       year, month = pub_date.split("-")
+
+                       if month.isdigit():
+                        pub_date = f"{year}-{month}-01"
+                       else:
+                        pub_date = f"{year}-{month_map.get(month, '01')}-01"
 
                   
 
@@ -115,7 +127,7 @@ def _import_scraped_articles_to_db(articles: list[dict]) -> dict:
                     full_text=article.get("full_text"),
                     authors=article.get("authors") or [],
                     journal=article.get("journal") or article.get("source") or "Unknown Journal",
-                    publication_date=pub_date,
+                    publication_date=pub_date.replace("-Apr", "-04-01").replace("-May", "-05-01") if isinstance(pub_date, str) else pub_date,
                     doi=article.get("doi"),
                     pmid=article.get("pmid"),
                     url=article.get("url") or article.get("source_url") or "",

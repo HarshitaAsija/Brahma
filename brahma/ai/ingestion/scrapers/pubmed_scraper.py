@@ -164,7 +164,7 @@ async def run_pubmed(query: str, max_results: int = 10) -> list:
     return all_papers
 
 def search_and_scrape(query: str, max_results: int = 10,
-                      output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output") -> list:
+                      output_dir: str = "/home/harshita/Projects/Brahma/brahma/ai/ingestion/output") -> list:
     """Synchronous entry point for PubMed scraping."""
     os.makedirs(output_dir, exist_ok=True)
     papers = asyncio.run(run_pubmed(query, max_results))
@@ -177,7 +177,9 @@ def search_and_scrape(query: str, max_results: int = 10,
         out_path = f"{output_dir}/{safe_id}.json"
         if os.path.exists(out_path):
             print(f"  [SKIP] {safe_id} already saved")
+            results.append(paper)
             continue
+        
         with open(out_path, "w") as f:
             json.dump(paper, f, indent=2, ensure_ascii=False)
         print(f"  [SAVED] {safe_id}.json | {paper['title'][:50]} | {paper['word_count']} words")
@@ -187,7 +189,7 @@ def search_and_scrape(query: str, max_results: int = 10,
     return results
 
 # Keep backward compatibility
-def scrape_pubmed_article(pmid: str, output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output") -> dict:
+def scrape_pubmed_article(pmid: str, output_dir: str = "/home/harshita/Projects/Brahma/brahma/ai/ingestion/output") -> dict:
     """Scrape a single PubMed article by PMID."""
     papers = asyncio.run(run_pubmed(pmid, max_results=1))
     if papers:

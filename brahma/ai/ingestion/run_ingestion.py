@@ -13,8 +13,9 @@ from ai.ingestion.scrapers.search_scraper import search_and_scrape, run_pubmed
 from ai.ingestion.scrapers.pmc_scraper import run_pmc
 from ai.ingestion.scrapers.biorxiv_scraper import search_and_scrape as biorxiv_scrape
 
-OUTPUT_DIR = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output"
+from pathlib import Path
 
+OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 def run(query: str, max_results: int = 10, source: str = "pmc"):
     print(f"\n{'='*60}")
     print(f"BRAHMA Ingestion")
@@ -23,7 +24,7 @@ def run(query: str, max_results: int = 10, source: str = "pmc"):
     print(f"  Source : {source}")
     print(f"{'='*60}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     results = []
 
     if source == "pmc":

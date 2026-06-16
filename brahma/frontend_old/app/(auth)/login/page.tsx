@@ -1,0 +1,88 @@
+'use client';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Link } from '@/components/ui/link';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useState } from 'react';
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle login logic
+    console.log('Login attempt:', { email, password, rememberMe });
+    // Redirect to dashboard on success
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12 sm:mx-auto">
+      <form className="w-full space-y-6 sm:max-w-md" onSubmit={handleSubmit}>
+        <div className="flex flex-col space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            Email Address
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            className="mt-1 block w-full"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="flex flex-col space-y-2">
+          <Label htmlFor="password" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            Password
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            className="mt-1 block w-full"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              id="remember-me"
+              checked={rememberMe}
+              onCheckedChange={setRememberMe}
+              aria-label="Remember me"
+            />
+            <Label htmlFor="remember-me" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              Remember me
+            </Label>
+          </div>
+
+          <div className="text-sm">
+            <Link href="/auth/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
+              Forgot password?
+            </Link>
+          </div>
+        </div>
+
+        <Button type="submit" className="w-full">
+          Sign in
+        </Button>
+      </form>
+
+      <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">
+        Don't have an account?{' '}
+        <Link href="/auth/signup" className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
+          Sign up
+        </Link>
+      </p>
+    </div>
+  );
+}
