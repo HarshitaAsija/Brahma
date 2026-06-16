@@ -1,14 +1,31 @@
-
 # Python
 __pycache__/
-**/__pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-.venv/
+*.pyd
+venv/
+.env
 
-# Scraped output data - never commit JSONs
-ai/ingestion/output/
-data/
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
 
 # OS
 .DS_Store
+
+# Build caches
+frontend_old/.next/
+frontend/.next/
+
+# Python virtual environments
+backend/venv/
