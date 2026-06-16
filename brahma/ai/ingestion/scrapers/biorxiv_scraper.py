@@ -1,18 +1,80 @@
 """
 bioRxiv / medRxiv scraper for BRAHMA.
-Uses shared headless browser (browser.py) — no visible window, no CAPTCHA popups.
-Fetches full text including all sections (Introduction, Methods, Results, Discussion).
+- bioRxiv: uses Botasaurus @request (humane HTTP, bypasses 403)
+- medRxiv: uses plain requests (works fine, DOI prefix: 10.64898)
 """
 import re
 import json
 import os
 import time
 import random
+import requests
 from typing import Optional
 from datetime import datetime
 
+from botasaurus.request import request, Request
+
 from ai.ingestion.scrapers.base import SCRAPER_VERSION
-from ai.ingestion.scrapers.browser import fetch_page, polite_sleep
+
+_DOI_PREFIX = {
+    "biorxiv": "10.1101",
+    "medrxiv": "10.64898",
+}
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+
+def polite_sleep() -> None:
+    time.sleep(random.uniform(2.0, 4.0))
+
+
+# --------------------------------------------------------------------------- #
+#  Botasaurus fetcher for bioRxiv
+# --------------------------------------------------------------------------- #
+
+@request(output=None)
+def _bota_fetch(req: Request, url):
+    """Fetch a single URL using Botasaurus humane request."""
+    try:
+        r = req.get(url)
+        if r.status_code == 200:
+            return r.text
+        print(f"[FETCH] HTTP {r.status_code} for {url}")
+        return ""
+    except Exception as e:
+        print(f"[FETCH] Error: {e}")
+        return ""
+
+
+def fetch_biorxiv(url: str, wait: float = 2.0) -> str:
+    html = _bota_fetch(url)
+    if html:
+        time.sleep(wait + random.uniform(0.5, 1.5))
+    return html or ""
+
+
+# --------------------------------------------------------------------------- #
+#  Plain requests fetcher for medRxiv
+# --------------------------------------------------------------------------- #
+
+def fetch_medrxiv(url: str, wait: float = 2.0) -> str:
+    try:
+        r = requests.get(url, headers=_HEADERS, timeout=20)
+        if r.status_code == 200:
+            time.sleep(wait + random.uniform(0.5, 1.5))
+            return r.text
+        print(f"[FETCH] HTTP {r.status_code} for {url}")
+        return ""
+    except Exception as e:
+        print(f"[FETCH] Error: {e}")
+        return ""
 
 
 # --------------------------------------------------------------------------- #
@@ -27,7 +89,6 @@ def _decode_html(raw: str) -> str:
 
 
 def _extract_abstract(html: str) -> Optional[str]:
-    """Extract abstract text from the article HTML."""
     idx = html.find("abstract-1")
     if idx != -1:
         chunk = html[idx: idx + 3000]
@@ -36,14 +97,12 @@ def _extract_abstract(html: str) -> Optional[str]:
         if p_match:
             text = re.sub(r"<[^>]+>", " ", p_match.group(1))
             return re.sub(r"\s+", " ", text).strip()
-    # Fallback: meta tag (HTML-encoded)
     meta = re.search(r'name="abstract"[^>]*content="([^"]+)"', html)
     if meta:
         return _decode_html(meta.group(1))
     return None
 
 
-# Sections to discard — noise for chunking / RAG
 _SKIP_SECTIONS = {
     "references", "acknowledgements", "acknowledgments", "footnotes",
     "subject area", "follow this preprint", "citation manager formats",
@@ -54,20 +113,13 @@ _SKIP_SECTIONS = {
 
 
 def _extract_sections(html: str) -> dict:
-    """
-    Extract structured sections from the highwire-markup block.
-    Returns {heading: text} preserving document order.
-    Noise sections (references, acknowledgements, etc.) are excluded.
-    """
     sections: dict = {}
     body_idx = html.find("highwire-markup")
     if body_idx == -1:
         return sections
-
     body_html = html[body_idx:]
     last_close = body_html.rfind("</div>")
     body_content = body_html[:last_close] if last_close != -1 else body_html
-
     parts = re.findall(
         r"<h2[^>]*>(.*?)</h2>(.*?)(?=<h2|$)",
         body_content,
@@ -81,60 +133,47 @@ def _extract_sections(html: str) -> dict:
         content = re.sub(r"\s+", " ", content).strip()
         if content:
             sections[heading] = content
-
     return sections
 
 
 def _parse_html(html: str, doi: str, url: str, server: str) -> Optional[dict]:
-    """Parse a bioRxiv/medRxiv .full page into a structured dict."""
-
-    # --- Title ---
     title = None
     m = re.search(r'<meta name="citation_title" content="([^"]+)"', html)
     if m:
         title = m.group(1).strip()
 
-    # --- Abstract ---
     abstract = _extract_abstract(html)
-
-    # --- Authors ---
     authors = re.findall(r'<meta name="citation_author" content="([^"]+)"', html)
 
-    # --- Publication date ---
     pub_date = None
     m = re.search(r'<meta name="citation_date" content="([^"]+)"', html)
     if m:
         pub_date = m.group(1).strip()
 
-    # --- DOI (prefer meta over argument) ---
     m = re.search(r'<meta name="citation_doi" content="([^"]+)"', html)
     if m:
         doi = m.group(1).strip()
 
-    # --- Journal ---
     journal = "bioRxiv" if server == "biorxiv" else "medRxiv"
     m = re.search(r'<meta name="citation_journal_title" content="([^"]+)"', html)
     if m:
         journal = m.group(1).strip()
 
-    # --- Keywords / subject category ---
     keywords = re.findall(r'<meta name="citation_keywords" content="([^"]+)"', html)
     if not keywords:
         m = re.search(r'<span class="highwire-article-collection-term">([^<]+)<', html)
         if m:
             keywords = [m.group(1).strip()]
 
-    # --- Article type ---
     article_type = "Preprint"
     m = re.search(r'<span class="biorxiv-article-type">([^<]+)<', html)
     if m:
         article_type = m.group(1).strip()
 
-    # --- Sections & full text ---
     sections = _extract_sections(html)
     full_text = " ".join(sections.values()) if sections else (abstract or "")
-
     word_count = len(full_text.split()) if full_text else 0
+
     print(
         f"[PARSED] title={bool(title)} abstract={bool(abstract)} "
         f"authors={len(authors)} sections={list(sections.keys())[:4]} "
@@ -171,12 +210,14 @@ def _parse_html(html: str, doi: str, url: str, server: str) -> Optional[dict]:
 
 
 # --------------------------------------------------------------------------- #
-#  Search helpers
+#  Link extraction
 # --------------------------------------------------------------------------- #
 
-def _get_article_links(html: str) -> list:
-    """Extract unique article DOI paths from a search-results page."""
-    paths = re.findall(r'href="(/content/10\.1101/[\d.]+v\d+)"', html)
+def _get_article_links(html: str, server: str) -> list:
+    doi_prefix = _DOI_PREFIX.get(server, "10.1101")
+    doi_prefix_re = doi_prefix.replace(".", r"\.")
+    pattern = rf'href="(/content/{doi_prefix_re}/[^"]+v\d+)"'
+    paths = re.findall(pattern, html)
     return list(dict.fromkeys(paths))
 
 
@@ -188,33 +229,29 @@ def search_and_scrape(
     query: str,
     max_results: int = 10,
     server: str = "biorxiv",
-    output_dir: str = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output",
+    output_dir: str = "/home/vinni_kapoor/Brahma/brahma/ai/ingestion/output",
 ) -> list:
-    """
-    Full pipeline for bioRxiv or medRxiv.
-    1. Collect article links across search pages (headless, no popup).
-    2. Fetch each article's .full page (headless, no popup).
-    3. Parse and save as JSON with full text + structured sections.
-    """
     os.makedirs(output_dir, exist_ok=True)
+
     base_url = f"https://www.{server}.org"
     encoded_query = query.replace(" ", "%20")
-    results: list = []
+    fetch_fn = fetch_biorxiv if server == "biorxiv" else fetch_medrxiv
 
-    # ---- Step 1: collect article DOI paths -------------------------------- #
-    all_doi_paths: list = []
+    results = []
+    all_doi_paths = []
     page_num = 0
 
+    # ---- Step 1: collect links -------------------------------------------- #
     while len(all_doi_paths) < max_results:
         search_url = f"{base_url}/search/{encoded_query}?page={page_num}"
         print(f"[SEARCH] {search_url}")
 
-        html = fetch_page(search_url, wait=3.0)
+        html = fetch_fn(search_url, wait=2.0)
         if not html:
-            print("[SEARCH] Empty response — stopping search.")
+            print("[SEARCH] Empty response — stopping.")
             break
 
-        links = _get_article_links(html)
+        links = _get_article_links(html, server)
         print(f"  Found {len(links)} articles on page {page_num}")
 
         if not links:
@@ -235,12 +272,14 @@ def search_and_scrape(
 
     # ---- Step 2: scrape each article -------------------------------------- #
     for doi_path in all_doi_paths:
-        doi_match = re.search(r"10\.1101/[\d.]+", doi_path)
+        doi_prefix = _DOI_PREFIX.get(server, "10.1101")
+        doi_prefix_re = doi_prefix.replace(".", r"\.")
+        doi_match = re.search(rf"{doi_prefix_re}/[^\s\"']+", doi_path)
         if not doi_match:
             continue
 
         doi_id = doi_match.group(0)
-        safe_id = doi_id.replace("/", "_").replace(".", "_")
+        safe_id = doi_path.replace("/", "_").replace(".", "_").strip("_")
         out_path = os.path.join(output_dir, f"{server}_{safe_id}.json")
 
         if os.path.exists(out_path):
@@ -250,7 +289,7 @@ def search_and_scrape(
         full_url = f"{base_url}{doi_path}.full"
         print(f"[SCRAPE] {full_url}")
 
-        html = fetch_page(full_url, wait=2.5)
+        html = fetch_fn(full_url, wait=2.5)
         if not html:
             print(f"[WARN] Empty response for {doi_id}")
             continue
