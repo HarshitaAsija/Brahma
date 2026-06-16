@@ -2,7 +2,7 @@
 # Get free API key: https://www.ncbi.nlm.nih.gov/account/
 # Without key: 3 req/sec | With key: 10 req/sec
 NCBI_API_KEY = None
-
+from ai.ingestion.scrapers.fulltext_resolver import resolve_fulltext_from_doi
 import asyncio
 import httpx
 import xml.etree.ElementTree as ET
@@ -105,7 +105,21 @@ async def _fetch_batch(pmids: list, client: httpx.AsyncClient) -> list:
 
             language = article.findtext(".//Language", "eng")
 
-            word_count = len(abstract.split()) if abstract else 0
+            full_text = abstract
+            sections = {}
+            open_access = False
+
+            if doi:
+                try:
+                    resolved = resolve_fulltext_from_doi(doi)
+                    if resolved and resolved.get("full_text"):
+                        full_text = resolved["full_text"]
+                        open_access = True
+                        sections = resolved.get("sections", {})
+                        print(f"      [FULLTEXT] Retrieved {len(full_text.split())} words")
+                except Exception as e:
+                    print(f"      [FULLTEXT] Failed for DOI {doi}: {e}")
+            word_count = len(full_text.split()) if full_text else 0
 
             print(f"    ✓ {title[:70]}")
 
@@ -114,8 +128,8 @@ async def _fetch_batch(pmids: list, client: httpx.AsyncClient) -> list:
                 "pmid":              pmid,
                 "title":             title,
                 "abstract":          abstract,
-                "full_text":         abstract,  # PubMed only has abstracts
-                "sections":          {},
+                "full_text":         full_text,  # PubMed only has abstracts
+                "sections":          sections,
                 "authors":           authors,
                 "journal":           journal,
                 "publication_date":  pub_date,
@@ -123,7 +137,7 @@ async def _fetch_batch(pmids: list, client: httpx.AsyncClient) -> list:
                 "language":          language,
                 "keywords":          keywords,
                 "mesh_terms":        mesh_terms,
-                "open_access":       False,
+                "open_access":       open_access,
                 "retracted":         False,
                 "retraction_reason": None,
                 "source":            "pubmed",
