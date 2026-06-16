@@ -1,9 +1,10 @@
 import logging
-
+from app.routers.entities import router as entities_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ app = FastAPI(
     version=settings.VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
-
+app.include_router(entities_router, prefix="/api/v1")
 # CORS
 app.add_middleware(
     CORSMiddleware,
