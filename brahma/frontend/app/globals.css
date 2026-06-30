@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc; /* Very light slate for premium feel */
+  --foreground: #0f172a; /* Slate 900 */
+  
+  --surface: #ffffff;
+  --surface-hover: #f1f5f9;
+  
+  --border-light: #e2e8f0;
+  --border-med: #cbd5e1;
+  
+  --primary: #2563eb; /* Blue 600 */
+  --primary-light: #eff6ff; /* Blue 50 */
+  
+  --success: #10b981; /* Emerald 500 */
+  --success-light: #ecfdf5; /* Emerald 50 */
+  
+  --warning: #f59e0b; /* Amber 500 */
+  --warning-light: #fffbeb; /* Amber 50 */
+  
+  --danger: #ef4444; /* Red 500 */
+  --danger-light: #fef2f2; /* Red 50 */
+  
+  --accent: #8b5cf6; /* Violet 500 */
+  --accent-light: #f5f3ff; /* Violet 50 */
+
+  --text-muted: #64748b; /* Slate 500 */
+  --text-dim: #94a3b8; /* Slate 400 */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  
+  --color-border-light: var(--border-light);
+  --color-border-med: var(--border-med);
+  
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  
+  --color-danger: var(--danger);
+  --color-danger-light: var(--danger-light);
+  
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  
+  --color-text-muted: var(--text-muted);
+  --color-text-dim: var(--text-dim);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbar for modern feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

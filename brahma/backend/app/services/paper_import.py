@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, date
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,24 @@ def _make_ingestion_hash(data: PaperImportRequest) -> str:
 
     return hashlib.sha256(unique_string.encode()).hexdigest()
 
+def parse_pub_date(value):
+    if not value:
+        return None
+
+    if isinstance(value, date):
+        return value
+
+    if isinstance(value, str):
+        value = value.strip()
+
+        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m", "%Y"):
+            try:
+                parsed = datetime.strptime(value, fmt)
+                return parsed.date()
+            except ValueError:
+                continue
+
+    return None
 
 def import_paper(db: Session, data: PaperImportRequest) -> PaperImportResponse:
     """
@@ -88,13 +106,15 @@ def import_paper(db: Session, data: PaperImportRequest) -> PaperImportResponse:
     db.flush()  # gives us raw_paper.id without committing yet
 
     # --- Step 3: Insert into papers ---
+    pub_date = parse_pub_date(data.publication_date)
+
     paper = Paper(
         title=data.title,
         abstract=data.abstract,
         full_text=data.full_text,
         authors=data.authors,
         journal=data.journal,
-        publication_date=data.publication_date,
+        publication_date=pub_date or date.today(),
         doi=data.doi,
         pmid=data.pmid,
         url=data.url,

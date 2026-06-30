@@ -1,7 +1,9 @@
+# backend/app/routers/papers.py
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
+from app.database import get_db          # your existing DB session dependency
 from app.models.paper import Paper
 from app.schemas.paper import (
     PaperImportRequest,
@@ -41,13 +43,19 @@ def import_single_paper(
 @router.get("/", response_model=PaperListResponse)
 def list_papers(
     page: int = Query(1, ge=1, description="Page number starting from 1"),
-    page_size: int = Query(10, ge=1, le=100, description="Results per page"),
+    page_size: int = Query(50, ge=1, le=100, description="Results per page"),
     db: Session = Depends(get_db),
 ):
     offset = (page - 1) * page_size
     total = db.query(Paper).count()
-    papers = db.query(Paper).offset(offset).limit(page_size).all()
-
+    papers = (
+    db.query(Paper)
+    .order_by(Paper.created_at.desc())
+    .offset(offset)
+    .limit(page_size)
+    .all()
+    )
+    
     return PaperListResponse(
         total=total,
         page=page,

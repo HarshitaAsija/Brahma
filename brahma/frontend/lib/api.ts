@@ -1,5 +1,5 @@
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8001/api/v1";;
 
 export interface Paper {
   id: number;
@@ -27,7 +27,7 @@ export interface PaperListResponse {
 
 export async function fetchPapers(
   page = 1,
-  pageSize = 20
+  pageSize = 50
 ): Promise<PaperListResponse> {
   const res = await fetch(`${BASE_URL}/papers/?page=${page}&page_size=${pageSize}`);
 

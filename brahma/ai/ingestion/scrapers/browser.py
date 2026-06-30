@@ -10,8 +10,7 @@ import re
 from contextlib import contextmanager
 from playwright.sync_api import sync_playwright
 
-CHROMIUM_PATH = "/snap/bin/chromium"
-
+CHROMIUM_PATH = "/usr/bin/chromium-browser"
 
 def _is_captcha(html: str) -> bool:
     title = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE)

@@ -1,6 +1,13 @@
 from datetime import date, datetime
 from typing import Any, Optional
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 # -----------------------------------------------------------------
@@ -37,7 +44,6 @@ class PaperListResponse(BaseModel):
 
 # -----------------------------------------------------------------
 # PaperImportRequest
-# Handles real scraper JSON output
 # -----------------------------------------------------------------
 class PaperImportRequest(BaseModel):
     title: str
@@ -49,21 +55,21 @@ class PaperImportRequest(BaseModel):
     doi: Optional[str] = None
     pmid: Optional[str] = None
 
-    # url is optional in scraper JSON — falls back to source_url
+    # url is optional in scraper JSON
     url: Optional[str] = None
     source_url: Optional[str] = None
 
     source: Optional[str] = "pubmed"
 
-    # Scraper sends boolean true/false — we convert to string
+    # scraper may send bool
     open_access: Optional[Any] = "false"
 
-    # Extra scraper fields
+    # scraper metadata
     source_external_id: Optional[str] = None
     fetch_timestamp: Optional[datetime] = None
     scraper_version: Optional[str] = None
 
-    # Scraper fields we accept but don't store in papers table
+    # accepted but not stored
     sections: Optional[Any] = None
     article_type: Optional[str] = None
     language: Optional[str] = None
@@ -72,17 +78,50 @@ class PaperImportRequest(BaseModel):
     retracted: Optional[bool] = None
     retraction_reason: Optional[str] = None
 
+    @field_validator("publication_date", mode="before")
+    @classmethod
+    def normalize_publication_date(cls, v):
+        if not v:
+            return None
+
+        if isinstance(v, (date, datetime)):
+            return v
+
+        if isinstance(v, str):
+            v = v.strip()
+
+            # YYYY
+            if len(v) == 4 and v.isdigit():
+                return f"{v}-01-01"
+
+            parts = v.split("-")
+
+            # YYYY-M or YYYY-MM
+            if len(parts) == 2:
+                year = parts[0]
+                month = parts[1].zfill(2)
+                return f"{year}-{month}-01"
+
+            # YYYY-M-D or YYYY-MM-DD
+            if len(parts) == 3:
+                year = parts[0]
+                month = parts[1].zfill(2)
+                day = parts[2].zfill(2)
+                return f"{year}-{month}-{day}"
+
+        return v
+
     @model_validator(mode="after")
-    def fix_fields(self) -> "PaperImportRequest":
-        # If url is missing, use source_url
+    def fix_fields(self):
+        # fallback url from source_url
         if not self.url and self.source_url:
             self.url = self.source_url
 
-        # If url is still missing, build a fallback
+        # fallback url from DOI
         if not self.url:
             self.url = f"https://doi.org/{self.doi}" if self.doi else ""
 
-        # Convert boolean open_access to string
+        # normalize bool -> string
         if isinstance(self.open_access, bool):
             self.open_access = "true" if self.open_access else "false"
 
