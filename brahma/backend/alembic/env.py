@@ -2,12 +2,10 @@ import os
 import sys
 from logging.config import fileConfig
 from dotenv import load_dotenv
-
 from sqlalchemy import create_engine
 from sqlalchemy import pool
 from alembic import context
 
-# Load .env file first before importing settings
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -31,14 +29,8 @@ from app.core.config import settings
 
 target_metadata = Base.metadata
 
-
 def run_migrations_online():
-    url = (
-        f"postgresql://postgres:postgres"
-        f"@localhost:5432/brahma"
-    )
-    connectable = create_engine(url, poolclass=pool.NullPool)
-
+    connectable = create_engine(settings.DATABASE_URL, poolclass=pool.NullPool)
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
@@ -47,7 +39,6 @@ def run_migrations_online():
         )
         with context.begin_transaction():
             context.run_migrations()
-
 
 if context.is_offline_mode():
     raise RuntimeError("Offline mode not supported.")
