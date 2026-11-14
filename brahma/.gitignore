@@ -31,3 +31,6 @@ frontend/.next/
 backend/venv/
 __pycache__/
 *.pyc
+
+# Local backend virtual environment
+backend/.venv/

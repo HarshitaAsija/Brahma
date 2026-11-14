@@ -15,9 +15,6 @@ import json
 import asyncio
 import sys
 from pathlib import Path
-from app.db.session import SessionLocal
-from app.schemas.paper import PaperImportRequest
-from app.services.paper_import import import_paper
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 sys.path.append(str(PROJECT_ROOT))
 from typing import Optional
@@ -25,7 +22,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
-OUTPUT_DIR = "/home/harshita/Projects/Brahma/brahma/ai/ingestion/output"
+OUTPUT_DIR = str(PROJECT_ROOT / "ai" / "ingestion" / "output")
 
 
 # --------------------------------------------------------------------------- #
@@ -85,86 +82,6 @@ def _summarise(article: dict) -> ArticleSummary:
         keywords=article.get("keywords") or [],
     )
 
-def _import_scraped_articles_to_db(articles: list[dict]) -> dict:
-    """
-    Import scraped articles into raw_papers and papers tables.
-    Uses existing paper_import service.
-    """
-    db = SessionLocal()
-    imported = 0
-    duplicates = 0
-    failed = 0
-    errors = []
-
-    try:
-        for article in articles:
-            try:
-                pub_date = article.get("publication_date") or article.get("pub_date") or article.get("date")
-
-                if isinstance(pub_date, str):
-                    month_map = {
-                             "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04",
-                             "May": "05", "Jun": "06", "Jul": "07", "Aug": "08",
-                             "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12",
-                    }
-
-                    if len(pub_date) == 4:
-                       pub_date = f"{pub_date}-01-01"
-
-                    elif len(pub_date) == 7 and pub_date[4] == "-":
-                       year, month = pub_date.split("-")
-
-                       if month.isdigit():
-                        pub_date = f"{year}-{month}-01"
-                       else:
-                        pub_date = f"{year}-{month_map.get(month, '01')}-01"
-
-                  
-
-                payload = PaperImportRequest(
-                    title=article.get("title") or "Untitled",
-                    abstract=article.get("abstract") or "",
-                    full_text=article.get("full_text"),
-                    authors=article.get("authors") or [],
-                    journal=article.get("journal") or article.get("source") or "Unknown Journal",
-                    publication_date=pub_date.replace("-Apr", "-04-01").replace("-May", "-05-01") if isinstance(pub_date, str) else pub_date,
-                    doi=article.get("doi"),
-                    pmid=article.get("pmid"),
-                    url=article.get("url") or article.get("source_url") or "",
-                    source_url=article.get("source_url") or article.get("url") or "",
-                    source=article.get("source") or "unknown",
-                    open_access=article.get("open_access", "false"),
-                    source_external_id=article.get("source_external_id") or "",
-                    fetch_timestamp=article.get("fetch_timestamp"),
-                    scraper_version=article.get("scraper_version"),
-                    sections=article.get("sections"),
-                    keywords=article.get("keywords"),
-                )
-
-                result = import_paper(db, payload)
-
-                if result.duplicate:
-                    duplicates += 1
-                else:
-                    imported += 1
-
-            except Exception as e:
-                db.rollback()
-                failed += 1
-                errors.append({
-                    "title": article.get("title"),
-                    "error": str(e),
-                })
-
-        return {
-            "imported": imported,
-            "duplicates": duplicates,
-            "failed": failed,
-            "errors": errors[:5],
-        }
-
-    finally:
-        db.close()
 # --------------------------------------------------------------------------- #
 #  Endpoints
 # --------------------------------------------------------------------------- #
@@ -198,12 +115,6 @@ def search_and_scrape(req: SearchRequest):
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     results = []
-    db_import_summary = {
-    "imported": 0,
-    "duplicates": 0,
-    "failed": 0,
-    "errors": [],
-}
     try:
         if req.source == "pmc":
             results = pmc_scrape(req.query, req.max_results, OUTPUT_DIR)
@@ -236,7 +147,6 @@ def search_and_scrape(req: SearchRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scraper error: {e}")
-    db_import_summary = _import_scraped_articles_to_db(results)
 
     response = SearchResponse(
         query=req.query,
@@ -245,10 +155,7 @@ def search_and_scrape(req: SearchRequest):
         articles=[_summarise(r) for r in results],
     )
 
-    return {
-        **response.model_dump(),
-        "db_import": db_import_summary,
-    }
+    return response.model_dump()
 
 @router.post("/pdf")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -266,7 +173,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="File must be a PDF")
 
     # Save uploaded file temporarily
-    upload_dir = "/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf"
+    upload_dir = os.path.join(OUTPUT_DIR, "pdf")
     os.makedirs(upload_dir, exist_ok=True)
     tmp_path = os.path.join(upload_dir, file.filename)
 
@@ -299,7 +206,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         "chunk_count": len(result.get("chunks") or []),
         "ocr_used":    result.get("ocr_used", False),
         "source":      "pdf",
-        "saved_to":    f"/home/shalu/brahma_workspace/Brahma/brahma/ai/ingestion/output/pdf/{file.filename}.json",
+        "saved_to":    os.path.join(upload_dir, file.filename + ".json"),
     }
 
 

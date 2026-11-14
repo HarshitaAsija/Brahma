@@ -250,7 +250,9 @@ header{background:linear-gradient(135deg,#0f1729 0%,#111827 100%);border-bottom:
 </div>
 
 <script>
-const API = 'http://localhost:8000/api/v1/ingestion';
+const API = (window.location.port === '3000'
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : '') + '/api/v1/ingestion';
 
 // ── PILL / SOURCE SELECTION ────────────────────────────────
 function setPill(el, val) {
