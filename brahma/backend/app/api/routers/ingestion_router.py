@@ -71,7 +71,17 @@ def _summarise(article: dict) -> ArticleSummary:
         source=article.get("source", ""),
         word_count=article.get("word_count", 0)
                    or len((article.get("full_text") or "").split()),
-        has_full_text=bool(article.get("full_text")),
+        has_full_text=bool(
+            article.get("full_text")
+            and (
+                article.get("full_text", "").strip()
+                != (article.get("abstract") or "").strip()
+                or any(
+                    name.lower() != "abstract"
+                    for name in (article.get("sections") or {})
+                )
+            )
+        ),
         has_abstract=bool(article.get("abstract")),
         section_count=len(article.get("sections") or {}),
         doi=article.get("doi"),

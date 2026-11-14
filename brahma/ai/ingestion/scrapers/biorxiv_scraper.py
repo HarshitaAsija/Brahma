@@ -1,6 +1,6 @@
 """
 bioRxiv / medRxiv scraper for BRAHMA.
-- bioRxiv: uses Botasaurus @request (humane HTTP, bypasses 403)
+- bioRxiv: uses standard requests HTTP
 - medRxiv: uses plain requests (works fine, DOI prefix: 10.64898)
 """
 import re
@@ -12,7 +12,6 @@ import requests
 from typing import Optional
 from datetime import datetime
 
-from botasaurus.request import request, Request
 
 from ai.ingestion.scrapers.base import SCRAPER_VERSION
 
@@ -36,28 +35,20 @@ def polite_sleep() -> None:
 
 
 # --------------------------------------------------------------------------- #
-#  Botasaurus fetcher for bioRxiv
+#  Standard requests fetcher for bioRxiv
 # --------------------------------------------------------------------------- #
 
-@request(output=None)
-def _bota_fetch(req: Request, url):
-    """Fetch a single URL using Botasaurus humane request."""
+def fetch_biorxiv(url: str, wait: float = 2.0) -> str:
     try:
-        r = req.get(url)
+        r = requests.get(url, headers=_HEADERS, timeout=30)
         if r.status_code == 200:
+            time.sleep(wait + random.uniform(0.5, 1.5))
             return r.text
         print(f"[FETCH] HTTP {r.status_code} for {url}")
         return ""
     except Exception as e:
         print(f"[FETCH] Error: {e}")
         return ""
-
-
-def fetch_biorxiv(url: str, wait: float = 2.0) -> str:
-    html = _bota_fetch(url)
-    if html:
-        time.sleep(wait + random.uniform(0.5, 1.5))
-    return html or ""
 
 
 # --------------------------------------------------------------------------- #
@@ -231,83 +222,145 @@ def search_and_scrape(
     server: str = "biorxiv",
     output_dir: str = "/home/vinni_kapoor/Brahma/brahma/ai/ingestion/output",
 ) -> list:
+    """Search Europe PMC for bioRxiv/medRxiv preprints and save results."""
+    if server not in _DOI_PREFIX:
+        raise ValueError(f"Unsupported preprint server: {server}")
+
     os.makedirs(output_dir, exist_ok=True)
-
-    base_url = f"https://www.{server}.org"
-    encoded_query = query.replace(" ", "%20")
-    fetch_fn = fetch_biorxiv if server == "biorxiv" else fetch_medrxiv
-
     results = []
-    all_doi_paths = []
-    page_num = 0
 
-    # ---- Step 1: collect links -------------------------------------------- #
-    while len(all_doi_paths) < max_results:
-        search_url = f"{base_url}/search/{encoded_query}?page={page_num}"
-        print(f"[SEARCH] {search_url}")
+    doi_prefix = _DOI_PREFIX[server]
+    api_url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+    api_query = f'SRC:PPR AND DOI:{doi_prefix}* AND ({query})'
 
-        html = fetch_fn(search_url, wait=2.0)
-        if not html:
-            print("[SEARCH] Empty response — stopping.")
-            break
+    print(f"[SEARCH] Europe PMC: {api_query}")
 
-        links = _get_article_links(html, server)
-        print(f"  Found {len(links)} articles on page {page_num}")
-
-        if not links:
-            print("[SEARCH] No more results.")
-            break
-
-        all_doi_paths.extend(links)
-        all_doi_paths = list(dict.fromkeys(all_doi_paths))
-        page_num += 1
-        polite_sleep()
-
-    all_doi_paths = all_doi_paths[:max_results]
-    print(f"[INFO] Total articles to scrape: {len(all_doi_paths)}")
-
-    if not all_doi_paths:
-        print("[ERROR] No articles found.")
+    try:
+        response = requests.get(
+            api_url,
+            params={
+                "query": api_query,
+                "format": "json",
+                "resultType": "core",
+                "pageSize": min(max_results, 100),
+            },
+            headers=_HEADERS,
+            timeout=30,
+        )
+        response.raise_for_status()
+        papers = response.json().get("resultList", {}).get("result", [])
+    except Exception as e:
+        print(f"[SEARCH] Europe PMC error: {e}")
         return []
 
-    # ---- Step 2: scrape each article -------------------------------------- #
-    for doi_path in all_doi_paths:
-        doi_prefix = _DOI_PREFIX.get(server, "10.1101")
-        doi_prefix_re = doi_prefix.replace(".", r"\.")
-        doi_match = re.search(rf"{doi_prefix_re}/[^\s\"']+", doi_path)
-        if not doi_match:
+    print(f"[INFO] Found {len(papers)} matching records from {server}")
+
+    for paper in papers[:max_results]:
+        doi = paper.get("doi", "")
+        if not doi.startswith(doi_prefix + "/"):
             continue
 
-        doi_id = doi_match.group(0)
-        safe_id = doi_path.replace("/", "_").replace(".", "_").strip("_")
+        safe_id = doi.replace("/", "_").replace(".", "_")
         out_path = os.path.join(output_dir, f"{server}_{safe_id}.json")
 
         if os.path.exists(out_path):
-            print(f"[SKIP] {doi_id} already scraped")
+            print(f"[SKIP] {doi} already scraped")
             continue
 
-        full_url = f"{base_url}{doi_path}.full"
-        print(f"[SCRAPE] {full_url}")
+        title = _decode_html(paper.get("title") or "")
+        abstract = _decode_html(paper.get("abstractText") or "")
 
-        html = fetch_fn(full_url, wait=2.5)
-        if not html:
-            print(f"[WARN] Empty response for {doi_id}")
-            continue
+        author_list = paper.get("authorList", {}).get("author", [])
+        authors = [
+            a.get("fullName", "").strip()
+            for a in author_list
+            if a.get("fullName")
+        ]
 
-        article = _parse_html(html, doi_id, full_url, server)
-        if not article:
-            print(f"[WARN] Parse failed for {doi_id}")
-            continue
+        if not authors and paper.get("authorString"):
+            authors = [
+                name.strip()
+                for name in paper["authorString"].split(",")
+                if name.strip()
+            ]
+
+        pub_date = paper.get("firstPublicationDate")
+        source_url = f"https://doi.org/{doi}"
+        sections = {}
+        full_text = abstract
+
+        # Use Europe PMC hosted full text when it is available.
+        links = paper.get("fullTextUrlList", {}).get("fullTextUrl", [])
+        html_link = next(
+            (
+                link.get("url")
+                for link in links
+                if link.get("site") == "Europe_PMC"
+                and link.get("documentStyle") == "html"
+                and link.get("url")
+            ),
+            None,
+        )
+
+        if html_link:
+            try:
+                article_response = requests.get(
+                    html_link, headers=_HEADERS, timeout=30
+                )
+                if article_response.status_code == 200:
+                    parsed = _parse_html(
+                        article_response.text, doi, html_link, server
+                    )
+                    if parsed:
+                        sections = parsed.get("sections", {})
+                        full_text = parsed.get("full_text") or abstract
+                        title = parsed.get("title") or title
+                        abstract = parsed.get("abstract") or abstract
+                        authors = parsed.get("authors") or authors
+                        pub_date = parsed.get("publication_date") or pub_date
+                        source_url = html_link
+            except Exception as e:
+                print(f"[WARN] Full-text retrieval failed for {doi}: {e}")
+
+        if abstract and not sections:
+            sections = {"Abstract": abstract}
+
+        word_count = len(full_text.split()) if full_text else 0
+
+        article = {
+            "doi": doi,
+            "pmid": None,
+            "title": title,
+            "abstract": abstract,
+            "full_text": full_text,
+            "sections": sections,
+            "authors": authors,
+            "journal": server,
+            "publication_date": pub_date,
+            "article_type": "Preprint",
+            "language": "en",
+            "keywords": [],
+            "mesh_terms": [],
+            "open_access": True,
+            "retracted": False,
+            "retraction_reason": None,
+            "source": server,
+            "source_external_id": doi,
+            "source_url": source_url,
+            "word_count": word_count,
+            "fetch_timestamp": datetime.utcnow().isoformat(),
+            "scraper_version": SCRAPER_VERSION,
+        }
 
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(article, f, indent=2, ensure_ascii=False)
 
         print(
             f"[SAVED] {os.path.basename(out_path)} | "
-            f"{article['title'][:50]} | {article['word_count']} words"
+            f"{title[:50]} | {word_count} words"
         )
         results.append(article)
-        polite_sleep()
+        time.sleep(random.uniform(0.5, 1.0))
 
-    print(f"[DONE] Scraped {len(results)} articles from {server} for: {query}")
+    print(f"[DONE] Scraped {len(results)} records from {server} for: {query}")
     return results
